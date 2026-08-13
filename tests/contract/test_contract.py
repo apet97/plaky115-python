@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent.parent
-OPERATIONS = json.loads((REPO / "contract/generated/operations.json").read_text())
+OPERATIONS = json.loads((REPO / "contract/generated/operations.json").read_text(encoding="utf-8"))
 DESCRIPTORS = OPERATIONS["operations"]
 
 
@@ -74,14 +74,14 @@ def test_contract_check_is_green() -> None:
 
 
 def test_security_scheme_is_x_api_key() -> None:
-    spec = json.loads((REPO / "contract/generated/plaky.openapi.json").read_text())
+    spec = json.loads((REPO / "contract/generated/plaky.openapi.json").read_text(encoding="utf-8"))
     schemes = spec["components"]["securitySchemes"]
     assert list(schemes) == ["api-key-auth"]
     assert schemes["api-key-auth"] == {"in": "header", "name": "X-API-Key", "type": "apiKey"}
 
 
 def test_docs_index_covers_operations_workflows_guides() -> None:
-    index = json.loads((REPO / "contract/generated/docs-index.json").read_text())
+    index = json.loads((REPO / "contract/generated/docs-index.json").read_text(encoding="utf-8"))
     kinds: dict[str, int] = {}
     for entry in index["entries"]:
         kinds[entry["kind"]] = kinds.get(entry["kind"], 0) + 1

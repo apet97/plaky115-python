@@ -149,10 +149,11 @@ def main() -> int:
         # using only the installed wheel.
         consumer_dir = base / "consumer"
         consumer_dir.mkdir()
-        (consumer_dir / "consumer.py").write_text(CONSUMER)
+        (consumer_dir / "consumer.py").write_text(CONSUMER, encoding="utf-8")
         (consumer_dir / "pyrightconfig.json").write_text(
             '{"typeCheckingMode": "strict", "reportMissingTypeStubs": false,\n'
-            f' "venvPath": "{base}", "venv": "venv-mcp"}}\n'
+            f' "venvPath": "{base}", "venv": "venv-mcp"}}\n',
+            encoding="utf-8",
         )
         run(
             [

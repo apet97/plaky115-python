@@ -19,7 +19,7 @@ def test_version_exposed() -> None:
 
 
 def test_notice_in_readme() -> None:
-    readme = (REPO / "README.md").read_text()
+    readme = (REPO / "README.md").read_text(encoding="utf-8")
     # The README carries the notice as a blockquote; compare without the
     # markdown quote prefixes and line wrapping.
     flattened = " ".join(line.lstrip("> ").strip() for line in readme.splitlines())
@@ -27,12 +27,12 @@ def test_notice_in_readme() -> None:
 
 
 def test_notice_in_security_md() -> None:
-    flattened = " ".join((REPO / "SECURITY.md").read_text().split())
+    flattened = " ".join((REPO / "SECURITY.md").read_text(encoding="utf-8").split())
     assert NOTICE in flattened
 
 
 def test_license_is_upstream_mit() -> None:
-    text = (REPO / "LICENSE").read_text()
+    text = (REPO / "LICENSE").read_text(encoding="utf-8")
     assert "MIT License" in text
     assert "Copyright (c) 2026 apet97" in text
     assert "Permission is hereby granted, free of charge" in text

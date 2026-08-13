@@ -9,7 +9,9 @@ FIXTURES = Path(__file__).resolve().parent.parent / "fixtures"
 
 
 def test_source_corpus() -> None:
-    corpus = json.loads((FIXTURES / "security/plaky-api-key-cases.json").read_text())
+    corpus = json.loads(
+        (FIXTURES / "security/plaky-api-key-cases.json").read_text(encoding="utf-8")
+    )
     assert corpus["marker"] == "[REDACTED_PLAKY_API_KEY]"
     for case in corpus["cases"]:
         source = "".join(case["inputParts"])

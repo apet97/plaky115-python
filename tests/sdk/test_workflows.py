@@ -81,11 +81,13 @@ def test_field_label_precedence() -> None:
 
 
 def test_csv_golden_fixtures() -> None:
-    items = json.loads((FIXTURES / "export/items.json").read_text())
-    assert (
-        render_items_csv(items, "spreadsheet") == (FIXTURES / "export/items.safe.csv").read_text()
+    items = json.loads((FIXTURES / "export/items.json").read_text(encoding="utf-8"))
+    assert render_items_csv(items, "spreadsheet") == (
+        FIXTURES / "export/items.safe.csv"
+    ).read_text(encoding="utf-8")
+    assert render_items_csv(items, "raw") == (FIXTURES / "export/items.raw.csv").read_text(
+        encoding="utf-8"
     )
-    assert render_items_csv(items, "raw") == (FIXTURES / "export/items.raw.csv").read_text()
 
 
 def test_csv_empty_is_empty_string() -> None:

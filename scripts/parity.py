@@ -62,7 +62,7 @@ def check(condition: bool, message: str) -> None:
 
 
 def main() -> int:
-    expected = json.loads((REPO / "contract/expected-operations.json").read_text())
+    expected = json.loads((REPO / "contract/expected-operations.json").read_text(encoding="utf-8"))
     ops = expected["operations"]
     method_paths = {(o["method"], o["path"]) for o in ops}
     op_ids = [o["operationId"] for o in ops]
@@ -70,7 +70,9 @@ def main() -> int:
     check(len(method_paths) == len(ops), "duplicate method/path pair in expected operations")
     check(len(set(op_ids)) == len(ops), "duplicate operationId in expected operations")
 
-    overrides = yaml.safe_load((REPO / "contract/operation-overrides.yaml").read_text())
+    overrides = yaml.safe_load(
+        (REPO / "contract/operation-overrides.yaml").read_text(encoding="utf-8")
+    )
     over_ops: dict[str, dict[str, Any]] = overrides["operations"]
     check(len(over_ops) == EXPECTED_OPERATION_COUNT, f"expected 32 overrides, got {len(over_ops)}")
 
@@ -129,7 +131,7 @@ def main() -> int:
         "workflow read/mutation split mismatch",
     )
 
-    manifest = json.loads((REPO / "contract/source-manifest.json").read_text())
+    manifest = json.loads((REPO / "contract/source-manifest.json").read_text(encoding="utf-8"))
     check(
         manifest["sourceCommit"] == "33ae2926aa696f36d9663d44f914d42d9aadc53f",
         "source manifest commit mismatch",
@@ -153,7 +155,9 @@ def main() -> int:
     # The upstream mirror keeps Plaky's raw operationIds (e.g. getSpaces);
     # canonical operationIds are assigned by the overrides layer, keyed by
     # exact method/path. Here only the method/path inventory must agree.
-    upstream = yaml.safe_load((REPO / "contract/upstream.openapi.yaml").read_text())
+    upstream = yaml.safe_load(
+        (REPO / "contract/upstream.openapi.yaml").read_text(encoding="utf-8")
+    )
     spec_ops: set[tuple[str, str]] = set()
     for path, item in upstream["paths"].items():
         for method in ("get", "post", "put", "patch", "delete"):

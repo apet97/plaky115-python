@@ -154,7 +154,7 @@ def canonical_json(value: Any) -> str:
 
 
 def load_yaml(path: Path) -> Any:
-    return yaml.safe_load(path.read_text())
+    return yaml.safe_load(path.read_text(encoding="utf-8"))
 
 
 def resolve_pointer(document: Any, pointer: str) -> Any:
@@ -490,7 +490,7 @@ def build_outputs() -> dict[str, str]:
     upstream = load_yaml(CONTRACT / "upstream.openapi.yaml")
     overrides_doc = load_yaml(CONTRACT / "operation-overrides.yaml")
     jsonschema.validate(overrides_doc, OVERRIDES_SCHEMA)
-    expected = json.loads((CONTRACT / "expected-operations.json").read_text())
+    expected = json.loads((CONTRACT / "expected-operations.json").read_text(encoding="utf-8"))
 
     validate_openapi(upstream)
     spec = apply_schema_patches(upstream, CONTRACT / "schema-patches.yaml")
@@ -545,7 +545,7 @@ def cmd_build() -> int:
     outputs = build_outputs()
     GENERATED.mkdir(parents=True, exist_ok=True)
     for name, content in outputs.items():
-        (GENERATED / name).write_text(content)
+        (GENERATED / name).write_text(content, encoding="utf-8")
         print(f"wrote contract/generated/{name} ({len(content)} bytes)")
     return 0
 
@@ -557,7 +557,7 @@ def cmd_check() -> int:
         existing = GENERATED / name
         if not existing.is_file():
             failures.append(f"missing contract/generated/{name}")
-        elif existing.read_text() != content:
+        elif existing.read_text(encoding="utf-8") != content:
             failures.append(f"drift in contract/generated/{name}")
     if failures:
         print("CONTRACT CHECK FAIL:")
@@ -581,7 +581,7 @@ def cmd_fetch(url: str) -> int:
         "fetchedAt": datetime.now(UTC).isoformat(),
         "rawSha256": hashlib.sha256(raw).hexdigest(),
     }
-    (CANDIDATE / "manifest.json").write_text(canonical_json(manifest))
+    (CANDIDATE / "manifest.json").write_text(canonical_json(manifest), encoding="utf-8")
     print(f"fetched {len(raw)} bytes into contract/candidate/upstream.openapi.yaml")
     return 0
 
@@ -646,15 +646,15 @@ def cmd_accept() -> int:
     validate_openapi(candidate)
     (CONTRACT / "upstream.openapi.yaml").write_bytes(candidate_path.read_bytes())
 
-    fetch_manifest = json.loads(manifest_path.read_text())
-    manifest = json.loads((CONTRACT / "source-manifest.json").read_text())
+    fetch_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest = json.loads((CONTRACT / "source-manifest.json").read_text(encoding="utf-8"))
     manifest["upstreamProvenance"] = {
         "sourceUrl": fetch_manifest["sourceUrl"],
         "fetchedAt": fetch_manifest["fetchedAt"],
         "rawSha256": fetch_manifest["rawSha256"],
         "acceptedAt": datetime.now(UTC).isoformat(),
     }
-    (CONTRACT / "source-manifest.json").write_text(canonical_json(manifest))
+    (CONTRACT / "source-manifest.json").write_text(canonical_json(manifest), encoding="utf-8")
     print("accepted candidate into contract/upstream.openapi.yaml; rebuild and review drift")
     return 0
 

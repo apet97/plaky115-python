@@ -76,7 +76,7 @@ def generate_models() -> str:
             check=True,
             cwd=REPO,
         )
-        text = output.read_text()
+        text = output.read_text(encoding="utf-8")
 
     # datamodel-code-generator emits its own comment header; replace it with
     # the repository generated-file header.
@@ -110,7 +110,7 @@ def _repo_format(content: str) -> str:
     """Format generated code with the repository's own ruff configuration."""
     with tempfile.TemporaryDirectory() as tmp:
         target = Path(tmp) / "generated.py"
-        target.write_text(content)
+        target.write_text(content, encoding="utf-8")
         subprocess.run(
             [
                 sys.executable,
@@ -140,7 +140,7 @@ def _repo_format(content: str) -> str:
             check=True,
             capture_output=True,
         )
-        return target.read_text()
+        return target.read_text(encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------
@@ -420,7 +420,7 @@ def _generate_raw_tool(descriptor: dict[str, Any]) -> str:
 
 
 def generate_raw_tools() -> dict[Path, str]:
-    operations = json.loads(OPERATIONS.read_text())["operations"]
+    operations = json.loads(OPERATIONS.read_text(encoding="utf-8"))["operations"]
     outputs: dict[Path, str] = {}
     module_names: list[tuple[str, str]] = []
     for descriptor in operations:
@@ -449,7 +449,7 @@ def generate_raw_tools() -> dict[Path, str]:
     registry_lines.append("")
     outputs[RAW_TOOLS_DIR / "__init__.py"] = _repo_format("\n".join(registry_lines))
 
-    docs = DOCS_INDEX.read_text().strip()
+    docs = DOCS_INDEX.read_text(encoding="utf-8").strip()
     docs_module = (
         HEADER
         + '"""Bundled documentation index for plaky_search_docs."""\n\n'
@@ -475,7 +475,7 @@ def main() -> int:
             rel = target.relative_to(REPO)
             if not target.is_file():
                 failures.append(f"missing {rel}")
-            elif target.read_text() != content:
+            elif target.read_text(encoding="utf-8") != content:
                 failures.append(f"drift in {rel}")
         if failures:
             print("GENERATE CHECK FAIL:")
@@ -487,7 +487,7 @@ def main() -> int:
 
     for target, content in outputs.items():
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(content)
+        target.write_text(content, encoding="utf-8")
         print(f"wrote {target.relative_to(REPO)} ({len(content)} bytes)")
     return 0
 

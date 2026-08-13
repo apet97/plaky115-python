@@ -21,7 +21,9 @@ pytestmark = pytest.mark.anyio
 REPO = Path(__file__).resolve().parent.parent.parent
 OPERATIONS = {
     d["operationId"]: d
-    for d in json.loads((REPO / "contract/generated/operations.json").read_text())["operations"]
+    for d in json.loads((REPO / "contract/generated/operations.json").read_text(encoding="utf-8"))[
+        "operations"
+    ]
 }
 
 SPACE, BOARD, ITEM, COMMENT = "11", "22", "33", "44"
