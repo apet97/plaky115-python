@@ -33,7 +33,10 @@ def build_tool(client: AsyncPlakyClient) -> ToolSpec:
     ) -> Annotated[CallToolResult, ListOutput]:
         try:
             result = await client.comments.list(space_id=spaceId, board_id=boardId, item_id=itemId)
-            entries = [entry.model_dump(by_alias=True, exclude_none=True) for entry in result.data]
+            entries = [
+                entry.model_dump(mode="json", by_alias=True, exclude_none=True)
+                for entry in result.data
+            ]
             wire = compact_list(entries, "comment")
             text = f"listItemComments: {len(entries)} result(s)"
             return make_result(text=text, structured=wire)

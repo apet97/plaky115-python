@@ -35,7 +35,9 @@ def build_tool(client: AsyncPlakyClient) -> ToolSpec:
             result = await client.item_groups.get(
                 space_id=spaceId, board_id=boardId, item_group_id=itemGroupId
             )
-            wire = compact_entity(result.model_dump(by_alias=True, exclude_none=True), "itemGroup")
+            wire = compact_entity(
+                result.model_dump(mode="json", by_alias=True, exclude_none=True), "itemGroup"
+            )
             text = f"getItemGroup: id={wire.get('id')}"
             return make_result(text=text, structured=wire)
         except asyncio.CancelledError:

@@ -29,7 +29,9 @@ def build_tool(client: AsyncPlakyClient) -> ToolSpec:
     async def get_current_user() -> Annotated[CallToolResult, EntityOutput]:
         try:
             result = await client.users.me()
-            wire = compact_entity(result.model_dump(by_alias=True, exclude_none=True), "raw")
+            wire = compact_entity(
+                result.model_dump(mode="json", by_alias=True, exclude_none=True), "raw"
+            )
             text = f"getCurrentUser: id={wire.get('id')}"
             return make_result(text=text, structured=wire)
         except asyncio.CancelledError:

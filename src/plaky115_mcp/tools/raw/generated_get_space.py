@@ -32,7 +32,9 @@ def build_tool(client: AsyncPlakyClient) -> ToolSpec:
     ) -> Annotated[CallToolResult, EntityOutput]:
         try:
             result = await client.spaces.get(spaceId, expand=expand)
-            wire = compact_entity(result.model_dump(by_alias=True, exclude_none=True), "space")
+            wire = compact_entity(
+                result.model_dump(mode="json", by_alias=True, exclude_none=True), "space"
+            )
             text = f"getSpace: id={wire.get('id')}"
             return make_result(text=text, structured=wire)
         except asyncio.CancelledError:

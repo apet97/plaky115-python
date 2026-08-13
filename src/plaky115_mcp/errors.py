@@ -182,4 +182,4 @@ def internal_error(error: BaseException) -> ErrorEnvelope:
 
 
 def envelope_wire(envelope: ErrorEnvelope) -> dict[str, Any]:
-    return envelope.model_dump(by_alias=True, exclude_none=True)
+    return envelope.model_dump(mode="json", by_alias=True, exclude_none=True)

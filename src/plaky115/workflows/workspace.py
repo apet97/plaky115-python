@@ -39,7 +39,7 @@ def _entry_bytes(entry: dict[str, Any]) -> int:
 
 def _as_dict(value: Any) -> Any:
     if hasattr(value, "model_dump"):
-        return value.model_dump(by_alias=True, exclude_none=True)
+        return value.model_dump(mode="json", by_alias=True, exclude_none=True)
     return value
 
 
@@ -62,7 +62,9 @@ async def async_workspace_map(
     _validate_bound(max_bytes, "maxBytes")
     spaces = await client.spaces.list_all(expand=["board"], limit=max_items + 1, options=options)
     assert_materialized_collection(
-        [s.model_dump(by_alias=True, exclude_none=True) for s in spaces], max_items, max_bytes
+        [s.model_dump(mode="json", by_alias=True, exclude_none=True) for s in spaces],
+        max_items,
+        max_bytes,
     )
     out: list[dict[str, Any]] = []
     output_bytes = 0
@@ -103,7 +105,9 @@ def workspace_map(
     _validate_bound(max_bytes, "maxBytes")
     spaces = client.spaces.list_all(expand=["board"], limit=max_items + 1, options=options)
     assert_materialized_collection(
-        [s.model_dump(by_alias=True, exclude_none=True) for s in spaces], max_items, max_bytes
+        [s.model_dump(mode="json", by_alias=True, exclude_none=True) for s in spaces],
+        max_items,
+        max_bytes,
     )
     out: list[dict[str, Any]] = []
     output_bytes = 0

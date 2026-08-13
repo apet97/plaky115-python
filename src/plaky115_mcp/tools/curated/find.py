@@ -83,7 +83,7 @@ def build_find(client: AsyncPlakyClient) -> ToolSpec:
                     item_file=query,
                 )
             wire = compact_entity(
-                entity.model_dump(by_alias=True, exclude_none=True)
+                entity.model_dump(mode="json", by_alias=True, exclude_none=True)
                 if hasattr(entity, "model_dump")
                 else dict(entity),
                 _COMPACT_BY_KIND[kind],

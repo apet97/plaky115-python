@@ -178,6 +178,6 @@ Only a green objective gate permits `verified`.
 | gate:docs | gate | plan sections 12-14 | docs/examples checks + notice gates | verify.py receipts | verified | check_docs.py green |
 | gate:ci | gate | plan sections 12-14 | CI matrix + pinned actions | verify.py receipts | implemented | ci.yml pinned; unexecuted (no remote) |
 | gate:live-read | gate | plan sections 12-14 | 17-op read certification x4 surfaces | verify.py receipts | verified | live_read.py ACCEPT x4 surfaces 2026-08-13 |
-| gate:live-write | gate | plan sections 12-14 | 15-op write certification (separately authorized) | verify.py receipts | blocked | BLOCKED_EXTERNAL (see BLOCKERS.md) |
+| gate:live-write | gate | plan sections 12-14 | 15-op write certification (separately authorized) | verify.py receipts | verified | ACCEPT 2026-08-13: 15/15 x2 surfaces, zero residue |
 | gate:release | gate | plan sections 12-14 | reproducible artifact + trusted publishing (separately authorized) | verify.py receipts | blocked | BLOCKED_EXTERNAL (see BLOCKERS.md) |
 | gate:final-audit | gate | plan sections 12-14 | adversarial final audit | verify.py receipts | in-progress | matrix reconciliation this commit |

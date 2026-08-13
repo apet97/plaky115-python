@@ -12,20 +12,17 @@ getItemFile/getItemFileDownload SKIP_PREREQUISITE (complete file listing
 proved no file exists). The run also surfaced and fixed a real model
 defect (ADR-0006: naive datetimes). Counts and shapes only were recorded.
 
-## BLOCKED_EXTERNAL — live write certification (script and run)
+## RESOLVED — live write certification
 Date: 2026-08-13
-Command: (not yet runnable) planned `scripts/live_write.py`
-Reason: live writes require separate current-task authorization naming the
-sacrificial space/board, allowed operations, mutation budget, cleanup
-boundary, and archive permission (plan section 3.8), plus the
-PLAKY115_LIVE_WRITE/SMOKE_* interlocks. No such authorization exists in
-this task. The write-sweep script itself is deferred with the run; its
-behavior contract is documented in docs/live-certification.md and plan
-Phase 15.
-Next action after unblocking: implement scripts/live_write.py to the
-Phase 15 contract (UUID marker, 15 mutations x async SDK + raw MCP with
-dedicated artifacts, finally/SIGINT/SIGTERM cleanup, zero-residue proof),
-then run under the named authorization.
+Authorization: granted in-task, naming sacrificial workspace a5115x
+(space 41478, board 157742) with unrestricted mutation and archive
+permission. Run with all four interlocks set.
+Result: WRITE GATE ACCEPT — 15/15 mutation operations through the async
+SDK and 15/15 through generated raw MCP tools with dedicated artifacts;
+tracked artifacts 0; discovered leftovers 0; no quarantined archived
+groups (the archived probe group deleted cleanly). The run surfaced and
+fixed a real defect: MCP structured content carried non-JSON-serializable
+datetimes (fixed via model_dump(mode="json") across MCP surfaces).
 
 ## BLOCKED_EXTERNAL — remote repository, tags, and publication
 Date: 2026-08-13

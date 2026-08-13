@@ -37,7 +37,7 @@ def build_tool(client: AsyncPlakyClient) -> ToolSpec:
                 space_id=spaceId, board_id=boardId, item_id=itemId, item_file_id=itemFileId
             )
             wire = compact_entity(
-                result.model_dump(by_alias=True, exclude_none=True), "downloadLink"
+                result.model_dump(mode="json", by_alias=True, exclude_none=True), "downloadLink"
             )
             text = "getItemFileDownload: signed URL returned (sensitive; not repeated in text)"
             return make_result(text=text, structured=wire)

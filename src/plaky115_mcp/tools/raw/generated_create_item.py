@@ -39,7 +39,9 @@ def build_tool(client: AsyncPlakyClient) -> ToolSpec:
                 "Any", await client.items.create(space_id=spaceId, board_id=boardId, body=body)
             )
             tracker.completed()
-            wire = compact_entity(result.model_dump(by_alias=True, exclude_none=True), "item")
+            wire = compact_entity(
+                result.model_dump(mode="json", by_alias=True, exclude_none=True), "item"
+            )
             text = f"createItem: id={wire.get('id')}"
             return make_result(text=text, structured=wire)
         except asyncio.CancelledError:

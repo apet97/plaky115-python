@@ -85,7 +85,7 @@ async def _run_items_search(
     )
     wire: dict[str, Any] = {
         "data": [
-            compact_entity(item.model_dump(by_alias=True, exclude_none=True), "item")
+            compact_entity(item.model_dump(mode="json", by_alias=True, exclude_none=True), "item")
             for item in result.data
         ],
         "scanned": result.scanned,
@@ -109,7 +109,9 @@ async def _run_comments_thread(
         space_id=args["spaceId"], board_id=args["boardId"], item_id=args["itemId"]
     )
     comments = [
-        compact_entity(comment.model_dump(by_alias=True, exclude_none=True), "comment")
+        compact_entity(
+            comment.model_dump(mode="json", by_alias=True, exclude_none=True), "comment"
+        )
         for comment in page.data[:limit]
     ]
     return (
@@ -280,14 +282,16 @@ async def run_mutation_workflow(
         await ctx.report_progress(1, 1)
     result_any = cast("Any", result)
     entity: dict[str, Any] = (
-        result_any.model_dump(by_alias=True, exclude_none=True)
+        result_any.model_dump(mode="json", by_alias=True, exclude_none=True)
         if hasattr(result_any, "model_dump")
         else {"ok": True}
     )
     wire = {
         "operation": operation,
         "result": compact_entity(entity, "raw"),
-        "receipt": receipt_model(tracker.receipt).model_dump(by_alias=True, exclude_none=True),
+        "receipt": receipt_model(tracker.receipt).model_dump(
+            mode="json", by_alias=True, exclude_none=True
+        ),
     }
     return f"{workflow}: completed", wire, (tracker,)
 
@@ -313,7 +317,8 @@ async def run_bulk_update(
     )
     wire = {
         "receipts": [
-            receipt_model(r).model_dump(by_alias=True, exclude_none=True) for r in receipts
+            receipt_model(r).model_dump(mode="json", by_alias=True, exclude_none=True)
+            for r in receipts
         ]
     }
     completed = sum(1 for r in receipts if r.status == "completed")

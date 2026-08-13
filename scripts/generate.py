@@ -258,7 +258,7 @@ def _success_block(descriptor: dict[str, Any]) -> list[str]:
     root = descriptor["success"]["root"]
     if root == "page":
         return [
-            "        entries = [entry.model_dump(by_alias=True, exclude_none=True) "
+            "        entries = [entry.model_dump(mode='json', by_alias=True, exclude_none=True) "
             "for entry in result.data]",
             f'        wire = compact_page(entries, result.has_more, "{kind}")',
             f'        text = f"{op_id}: {{len(entries)}} result(s); hasMore={{result.has_more}}"',
@@ -268,7 +268,7 @@ def _success_block(descriptor: dict[str, Any]) -> list[str]:
         # files.list stays a plain list.
         source = "result.data" if descriptor["sdk"]["resource"] == "comments" else "result"
         return [
-            "        entries = [entry.model_dump(by_alias=True, exclude_none=True) "
+            "        entries = [entry.model_dump(mode='json', by_alias=True, exclude_none=True) "
             f"for entry in {source}]",
             f'        wire = compact_list(entries, "{kind}")',
             f'        text = f"{op_id}: {{len(entries)}} result(s)"',
@@ -278,15 +278,14 @@ def _success_block(descriptor: dict[str, Any]) -> list[str]:
             '        wire = {"ok": True}',
             f'        text = "{op_id}: ok"',
         ]
+    dump_call = "result.model_dump(mode='json', by_alias=True, exclude_none=True)"
     if descriptor["sensitiveOutput"]:
         return [
-            "        wire = compact_entity("
-            'result.model_dump(by_alias=True, exclude_none=True), "' + kind + '")',
+            f'        wire = compact_entity({dump_call}, "{kind}")',
             f'        text = "{op_id}: signed URL returned (sensitive; not repeated in text)"',
         ]
     return [
-        "        wire = compact_entity("
-        'result.model_dump(by_alias=True, exclude_none=True), "' + kind + '")',
+        f'        wire = compact_entity({dump_call}, "{kind}")',
         f"        text = f\"{op_id}: id={{wire.get('id')}}\"",
     ]
 

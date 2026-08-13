@@ -25,7 +25,7 @@ _COMPACT_FIELD_LIMIT = 20
 
 def result_bytes(result: CallToolResult) -> int:
     """Canonical UTF-8 size of the complete serialized result."""
-    payload = result.model_dump(by_alias=True, exclude_none=True)
+    payload = result.model_dump(mode="json", by_alias=True, exclude_none=True)
     return len(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
 
 

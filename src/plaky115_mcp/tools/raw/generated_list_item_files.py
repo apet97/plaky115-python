@@ -35,7 +35,9 @@ def build_tool(client: AsyncPlakyClient) -> ToolSpec:
             result = await client.item_files.list(
                 space_id=spaceId, board_id=boardId, item_id=itemId
             )
-            entries = [entry.model_dump(by_alias=True, exclude_none=True) for entry in result]
+            entries = [
+                entry.model_dump(mode="json", by_alias=True, exclude_none=True) for entry in result
+            ]
             wire = compact_list(entries, "itemFile")
             text = f"listItemFiles: {len(entries)} result(s)"
             return make_result(text=text, structured=wire)

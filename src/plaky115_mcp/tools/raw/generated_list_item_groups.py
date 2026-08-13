@@ -36,7 +36,10 @@ def build_tool(client: AsyncPlakyClient) -> ToolSpec:
             result = await client.item_groups.list(
                 space_id=spaceId, board_id=boardId, page=page, page_size=pageSize
             )
-            entries = [entry.model_dump(by_alias=True, exclude_none=True) for entry in result.data]
+            entries = [
+                entry.model_dump(mode="json", by_alias=True, exclude_none=True)
+                for entry in result.data
+            ]
             wire = compact_page(entries, result.has_more, "itemGroup")
             text = f"listItemGroups: {len(entries)} result(s); hasMore={result.has_more}"
             return make_result(text=text, structured=wire)

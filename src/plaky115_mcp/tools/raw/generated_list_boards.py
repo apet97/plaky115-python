@@ -33,7 +33,10 @@ def build_tool(client: AsyncPlakyClient) -> ToolSpec:
     ) -> Annotated[CallToolResult, PagedOutput]:
         try:
             result = await client.boards.list(space_id=spaceId, page=page, page_size=pageSize)
-            entries = [entry.model_dump(by_alias=True, exclude_none=True) for entry in result.data]
+            entries = [
+                entry.model_dump(mode="json", by_alias=True, exclude_none=True)
+                for entry in result.data
+            ]
             wire = compact_page(entries, result.has_more, "board")
             text = f"listBoards: {len(entries)} result(s); hasMore={result.has_more}"
             return make_result(text=text, structured=wire)
