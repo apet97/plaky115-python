@@ -1,0 +1,50 @@
+{
+  "marker": "[REDACTED_PLAKY_API_KEY]",
+  "cases": [
+    {
+      "name": "alphanumeric",
+      "inputParts": ["before ", "pl", "k_", "Ab09", " after"],
+      "expectedParts": ["before ", "[REDACTED_PLAKY_API_KEY]", " after"]
+    },
+    {
+      "name": "underscore",
+      "inputParts": ["pl", "k_", "alpha_beta"],
+      "expectedParts": ["[REDACTED_PLAKY_API_KEY]"]
+    },
+    {
+      "name": "hyphen",
+      "inputParts": ["pl", "k_", "alpha-beta"],
+      "expectedParts": ["[REDACTED_PLAKY_API_KEY]"]
+    },
+    {
+      "name": "shortest-tail",
+      "inputParts": ["pl", "k_", "A"],
+      "expectedParts": ["[REDACTED_PLAKY_API_KEY]"]
+    },
+    {
+      "name": "adjacent-punctuation",
+      "inputParts": ["(", "pl", "k_", "A-b_9", ");"],
+      "expectedParts": ["(", "[REDACTED_PLAKY_API_KEY]", ");"]
+    },
+    {
+      "name": "multiple-keys",
+      "inputParts": ["first=", "pl", "k_", "one", " second=", "pl", "k_", "TWO-_9"],
+      "expectedParts": ["first=", "[REDACTED_PLAKY_API_KEY]", " second=", "[REDACTED_PLAKY_API_KEY]"]
+    },
+    {
+      "name": "stops-at-punctuation",
+      "inputParts": ["pl", "k_", "abc", ".rest"],
+      "expectedParts": ["[REDACTED_PLAKY_API_KEY]", ".rest"]
+    },
+    {
+      "name": "non-match-bare-prefix",
+      "inputParts": ["pl", "k_"],
+      "expectedParts": ["pl", "k_"]
+    },
+    {
+      "name": "non-match-wrong-prefix",
+      "inputParts": ["pla", "ky_key"],
+      "expectedParts": ["pla", "ky_key"]
+    }
+  ]
+}

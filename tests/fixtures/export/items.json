@@ -1,0 +1,42 @@
+[
+  {
+    "unicode": "Živjo, 世界",
+    "title": "=SUM(A1:A2)",
+    "tabbed": "\t@cmd",
+    "nothing": null,
+    "notes": "line1\nline2, \"quoted\"",
+    "minus": "  -42",
+    "id": 1,
+    "flag": true,
+    "Status": "top-level status",
+    "fields": [
+      { "key": "status-a", "name": "Status", "value": "+Open" },
+      { "key": "status-b", "title": "Status", "value": "=Other" },
+      { "key": "title-field", "name": "title", "value": "field must not overwrite" },
+      { "key": "nested", "name": "Meta", "value": { "z": 1, "a": [true, null, { "β": "λ", "a": "x" }] } },
+      { "name": "No Key", "value": "@missing" },
+      { "key": "", "name": "No Key", "value": "-second" }
+    ]
+  },
+  {
+    "Status": "top2",
+    "flag": false,
+    "id": 2,
+    "minus": "safe",
+    "notes": "plain",
+    "nothing": null,
+    "tabbed": "safe",
+    "title": "Normal",
+    "unicode": "é",
+    "fields": [
+      { "name": "No Key", "value": "safe missing row slot1" },
+      { "key": "punct", "name": "Comma \"Field\"", "value": "value,with\nnewline" },
+      { "key": "nested", "name": "Meta", "value": { "z": 1, "a": [true, null, { "a": "x", "β": "λ" }] } },
+      { "key": "status-b", "name": "Status", "value": "@Closed" },
+      { "key": "status-a", "title": "Status", "value": "  =Open" },
+      { "key": "bool", "name": "Boolean", "value": false },
+      { "key": "null", "name": "Nullish", "value": null },
+      { "key": "formula", "name": "Formula", "value": "=1+1" }
+    ]
+  }
+]
