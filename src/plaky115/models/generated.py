@@ -25,21 +25,21 @@ class BoardDefaultValues(BaseModel):
         ),
     ] = None
     group_id: Annotated[
-        int | None,
+        int | str | None,
         Field(
             alias="groupId",
             description="Represents configured default item group in the board.",
         ),
     ] = None
     subscribed_team_ids: Annotated[
-        list[int] | None,
+        list[int | str] | None,
         Field(
             alias="subscribedTeamIds",
             description="Represents list of configured team ids which are by default added as subscribers to the new item in the board.",
         ),
     ] = None
     subscribed_user_ids: Annotated[
-        list[int] | None,
+        list[int | str] | None,
         Field(
             alias="subscribedUserIds",
             description="Represents list of configured user ids which are by default added as subscribers to the new item in the board.",
@@ -80,7 +80,7 @@ class CommentRequest(BaseModel):
         populate_by_name=True,
     )
     replies_to_id: Annotated[
-        int | None,
+        int | str | None,
         Field(
             alias="repliesToId",
             description="Represents comment ID to reply to.",
@@ -125,7 +125,7 @@ class FolderResponse(BaseModel):
         populate_by_name=True,
     )
     id: Annotated[
-        int | None,
+        int | str | None,
         Field(description="Represents unique folder identifier across the system."),
     ] = None
     ranking: Annotated[
@@ -172,7 +172,7 @@ class ItemCreateRequest(BaseModel):
         ),
     ] = None
     group_id: Annotated[
-        int | None,
+        int | str | None,
         Field(
             alias="groupId",
             description="Represents ID of the item group in which item is created. If it is not specified then **groupTitle** field\nwill be used for determining in which group item is created.",
@@ -188,7 +188,7 @@ class ItemCreateRequest(BaseModel):
         ),
     ] = None
     parent_id: Annotated[
-        int | None,
+        int | str | None,
         Field(
             alias="parentId",
             description="Represents ID of the parent under which subitem is created. If it has null value then item is created, if\nit is specified then subitem is created under specified parent.",
@@ -257,7 +257,7 @@ class ItemFileDownloadResponse(BaseModel):
         populate_by_name=True,
     )
     expires_in_seconds: Annotated[
-        int | None,
+        int | str | None,
         Field(
             alias="expiresInSeconds",
             description="Represents presigned URL validity period in seconds.",
@@ -296,13 +296,15 @@ class ItemFileResponse(BaseModel):
         Field(alias="fileType", description="Represents item file type.", examples=["PDF"]),
     ] = None
     id: Annotated[
-        int | None,
+        int | str | None,
         Field(description="Represents unique item file identifier across the system."),
     ] = None
     name: Annotated[str | None, Field(description="Represents item file name.")] = None
-    size: Annotated[int | None, Field(description="Represents item file size in bytes.")] = None
+    size: Annotated[int | str | None, Field(description="Represents item file size in bytes.")] = (
+        None
+    )
     uploaded_by: Annotated[
-        int | None,
+        int | str | None,
         Field(
             alias="uploadedBy",
             description="Represents ID of the user who uploaded the file.",
@@ -378,7 +380,7 @@ class ItemGroupResponse(BaseModel):
         ),
     ] = None
     id: Annotated[
-        int | None,
+        int | str | None,
         Field(description="Represents unique item group identifier across the system."),
     ] = None
     ranking: Annotated[
@@ -570,7 +572,7 @@ class ReactionDetails(BaseModel):
         ),
     ] = None
     user_id: Annotated[
-        int | None,
+        int | str | None,
         Field(
             alias="userId",
             description="Represents unique user identifier accross the system.",
@@ -637,7 +639,7 @@ class ReactionResponseNoCode(BaseModel):
         ),
     ] = None
     created_by_id: Annotated[
-        int | None,
+        int | str | None,
         Field(
             alias="createdById",
             description="Represents ID of the user who created the comment reaction.",
@@ -667,7 +669,7 @@ class ShortUserResponse(BaseModel):
     )
     email: Annotated[str | None, Field(description="Represents user's email.")] = None
     id: Annotated[
-        int | None,
+        int | str | None,
         Field(description="Represents unique user identifier across the system."),
     ] = None
     name: Annotated[str | None, Field(description="Represents user's name.")] = None
@@ -747,11 +749,11 @@ class TeamResponse(BaseModel):
         Field(alias="iconUrl", description="Represents url of the team's icon."),
     ] = None
     id: Annotated[
-        int | None,
+        int | str | None,
         Field(description="Represents unique team identifier across the system."),
     ] = None
     members: Annotated[
-        list[int] | None,
+        list[int | str] | None,
         Field(description="Represents the list of user ids which are members of the team"),
     ] = None
     title: Annotated[str | None, Field(description="Represents title of the team.")] = None
@@ -774,7 +776,7 @@ class TeamShortResponse(BaseModel):
         ),
     ] = None
     id: Annotated[
-        int | None,
+        int | str | None,
         Field(description="Represents unique team identifier across the system."),
     ] = None
     title: Annotated[str | None, Field(description="Represents title of the team.")] = None
@@ -862,7 +864,7 @@ class UserResponse(BaseModel):
     )
     email: Annotated[str | None, Field(description="Represents user's email.")] = None
     id: Annotated[
-        int | None,
+        int | str | None,
         Field(description="Represents unique user identifier across the system."),
     ] = None
     name: Annotated[str | None, Field(description="Represents user's name.")] = None
@@ -901,7 +903,7 @@ class CommentResponse(BaseModel):
         ),
     ] = None
     created_by: Annotated[
-        int | None,
+        int | str | None,
         Field(
             alias="createdBy",
             description="Represents ID of the user who created the comment.",
@@ -912,7 +914,7 @@ class CommentResponse(BaseModel):
         Field(description="Indicates whether the comment is softly deleted."),
     ] = None
     id: Annotated[
-        int | None,
+        int | str | None,
         Field(description="Represents unique item comment identifier across the system."),
     ] = None
     pinned: Annotated[
@@ -1094,7 +1096,7 @@ class ItemAttributeDefinition(BaseModel):
         str | None, Field(description="Represents description of the item attribute.")
     ] = None
     id: Annotated[
-        int | None,
+        int | str | None,
         Field(description="Represents unique identifier of the item attribute."),
     ] = None
     key: Annotated[str | None, Field(description="Represents key of the item attribute.")] = None
@@ -1136,22 +1138,23 @@ class BoardResponse(BaseModel):
     ] = None
     fields: list[ItemAttributeDefinition] | None = None
     folder: Annotated[
-        FolderResponse | int | None,
+        FolderResponse | int | str | None,
         Field(
             description="Represents folder containing the board. Can be returned as an ID or a full object if expanded."
         ),
     ] = None
     groups: list[ItemGroupResponse] | None = None
-    id: Annotated[int | None, Field(description="Represents unique identifier of the board.")] = (
-        None
-    )
+    id: Annotated[
+        int | str | None,
+        Field(description="Represents unique identifier of the board."),
+    ] = None
     kind: Annotated[Kind | None, Field(description="Represents type of the board.")] = None
     ranking: Annotated[
         str | None,
         Field(description="Represents lexicographical string used for the board ordering."),
     ] = None
     space: Annotated[
-        SpaceResponse | int | None,
+        SpaceResponse | int | str | None,
         Field(
             description="Represents space containing the board. Can be returned as an ID or a full object if expanded."
         ),
@@ -1178,7 +1181,7 @@ class ItemResponse(BaseModel):
         bool | None, Field(description="Indicates whether the item is archived.")
     ] = None
     board: Annotated[
-        BoardResponse | int | None,
+        BoardResponse | int | str | None,
         Field(
             description="Represents ID of the board in which item is created, it can be expanded to include full board details."
         ),
@@ -1198,7 +1201,7 @@ class ItemResponse(BaseModel):
         ),
     ] = None
     created_by: Annotated[
-        ShortUserResponse | int | None,
+        ShortUserResponse | int | str | None,
         Field(
             alias="createdBy",
             description="Represents ID of the user who created the item, it can be expanded to retrieve full user details.",
@@ -1228,34 +1231,34 @@ class ItemResponse(BaseModel):
         ),
     ] = None
     group: Annotated[
-        ItemGroupResponse | int | None,
+        ItemGroupResponse | int | str | None,
         Field(
             description="Represents ID of the group in which item is created, it can be expanded to include full group details."
         ),
     ] = None
     id: Annotated[
-        int | None,
+        int | str | None,
         Field(description="Represents unique item identifier across the system."),
     ] = None
     parent: Annotated[
-        ItemResponse | int | None,
+        ItemResponse | int | str | None,
         Field(
             description="Represents ID of the parent for subitem, it can be expanded to include full item details. It is non-null only for subitems."
         ),
     ] = None
     ranking: Annotated[str | None, Field(description="Represents item ranking.")] = None
     space: Annotated[
-        SpaceResponse | int | None,
+        SpaceResponse | int | str | None,
         Field(
             description="Represents ID of the space in which item is created, it can be expanded to include full space details"
         ),
     ] = None
     subitems: list[ItemResponse] | None = None
     subscribed_teams: Annotated[
-        list[TeamShortResponse | int] | None, Field(alias="subscribedTeams")
+        list[TeamShortResponse | int | str] | None, Field(alias="subscribedTeams")
     ] = None
     subscribed_users: Annotated[
-        list[ShortUserResponse | int] | None, Field(alias="subscribedUsers")
+        list[ShortUserResponse | int | str] | None, Field(alias="subscribedUsers")
     ] = None
     title: Annotated[str | None, Field(description="Represents item title.")] = None
 
@@ -1338,9 +1341,10 @@ class SpaceResponse(BaseModel):
         str | None,
         Field(alias="iconUrl", description="Represents url of the space icon."),
     ] = None
-    id: Annotated[int | None, Field(description="Represents unique identifier of the space.")] = (
-        None
-    )
+    id: Annotated[
+        int | str | None,
+        Field(description="Represents unique identifier of the space."),
+    ] = None
     kind: Annotated[Kind1 | None, Field(description="Represent kind of the space.")] = None
     title: Annotated[str | None, Field(description="Represents title of the space.")] = None
 

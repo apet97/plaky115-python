@@ -84,7 +84,7 @@ def _validate_bound(value: int, name: str) -> int:
 
 def _item_dict(item: Any) -> dict[str, Any]:
     if hasattr(item, "model_dump"):
-        return item.model_dump(by_alias=True, exclude_none=True)
+        return item.model_dump(mode="json", by_alias=True, exclude_none=True)
     return dict(item)
 
 
@@ -305,10 +305,29 @@ def iterate_item_chunks(
 
 @dataclass
 class _CsvState:
+    """CSV schema derived once per export; every chunk renders against it."""
+
     schema: CsvSchema
     header: str
     seed_page: dict[str, Any]
     seed_page_number: int
+
+
+def _build_csv_state(
+    definitions: Any,
+    listing: Any,
+    page: int,
+    safety: CsvSafety,
+) -> _CsvState:
+    seed = {"data": [_item_dict(i) for i in listing.data], "hasMore": listing.has_more}
+    definition_dicts = (
+        [_item_dict(d) for d in cast("list[Any]", definitions)]
+        if isinstance(definitions, list)
+        else None
+    )
+    schema = create_items_csv_schema(cast("list[dict[str, Any]]", seed["data"]), definition_dicts)
+    header = render_items_csv_chunk([], safety, schema, include_header=True)
+    return _CsvState(schema=schema, header=header, seed_page=seed, seed_page_number=page)
 
 
 async def _async_csv_state(
@@ -321,19 +340,26 @@ async def _async_csv_state(
     options: RequestOverrides | None,
 ) -> _CsvState:
     board = await client.boards.get(space_id=space_id, board_id=board_id, options=options)
-    definitions = _entity_value(board, "fields")
     listing = await client.items.list(
         space_id=space_id, board_id=board_id, page=page, page_size=page_size, options=options
     )
-    seed = {"data": [_item_dict(i) for i in listing.data], "hasMore": listing.has_more}
-    definition_dicts = (
-        [_item_dict(d) for d in cast("list[Any]", definitions)]
-        if isinstance(definitions, list)
-        else None
+    return _build_csv_state(_entity_value(board, "fields"), listing, page, safety)
+
+
+def _sync_csv_state(
+    client: PlakyClient,
+    space_id: str,
+    board_id: str,
+    page: int,
+    page_size: int,
+    safety: CsvSafety,
+    options: RequestOverrides | None,
+) -> _CsvState:
+    board = client.boards.get(space_id=space_id, board_id=board_id, options=options)
+    listing = client.items.list(
+        space_id=space_id, board_id=board_id, page=page, page_size=page_size, options=options
     )
-    schema = create_items_csv_schema(cast("list[dict[str, Any]]", seed["data"]), definition_dicts)
-    header = render_items_csv_chunk([], safety, schema, include_header=True)
-    return _CsvState(schema=schema, header=header, seed_page=seed, seed_page_number=page)
+    return _build_csv_state(_entity_value(board, "fields"), listing, page, safety)
 
 
 async def async_read_item_export_chunk(
@@ -389,6 +415,35 @@ async def async_read_item_export_chunk(
         csv_safety,
         options,
     )
+    return await _async_csv_chunk(
+        client,
+        space_id,
+        board_id,
+        state,
+        csv_safety=csv_safety,
+        page_size=page_size,
+        max_items=max_items,
+        max_bytes=max_bytes,
+        cursor=cursor,
+        include_header=include_header,
+        options=options,
+    )
+
+
+async def _async_csv_chunk(
+    client: AsyncPlakyClient,
+    space_id: str,
+    board_id: str,
+    state: _CsvState,
+    *,
+    csv_safety: CsvSafety,
+    page_size: int,
+    max_items: int,
+    max_bytes: int,
+    cursor: PageCursor | None,
+    include_header: bool,
+    options: RequestOverrides | None,
+) -> ItemExportChunk:
     header_bytes = utf8_byte_length(state.header) if include_header else 0
     if header_bytes > max_bytes:
         raise PlakyMaterializationLimitError("bytes", max_bytes)
@@ -409,6 +464,15 @@ async def async_read_item_export_chunk(
         cursor=cursor,
         serialize=lambda item: render_item_row(item, csv_safety, state.schema) + "\n",
     )
+    return _csv_export_chunk_result(state, chunk, csv_safety, include_header)
+
+
+def _csv_export_chunk_result(
+    state: _CsvState,
+    chunk: BoundedChunk[Any],
+    csv_safety: CsvSafety,
+    include_header: bool,
+) -> ItemExportChunk:
     rows = "".join(render_item_row(item, csv_safety, state.schema) + "\n" for item in chunk.data)
     if chunk.returned == 0 and chunk.complete and include_header:
         body = ""
@@ -440,12 +504,35 @@ async def async_iterate_item_export_chunks(
 ) -> AsyncIterator[ItemExportChunk]:
     cursor: PageCursor | None = None
     first = True
+    if format == "jsonl":
+        while True:
+            chunk = await async_read_item_export_chunk(
+                client,
+                space=space,
+                board=board,
+                format="jsonl",
+                page_size=page_size,
+                max_items=max_items,
+                max_bytes=max_bytes,
+                cursor=cursor,
+                include_header=first,
+                options=options,
+            )
+            yield chunk
+            first = False
+            if chunk.next_cursor is None:
+                return
+            cursor = chunk.next_cursor
+    # One schema for the whole export: rows in every chunk must align with
+    # the single header emitted by the first chunk.
+    space_id, board_id = await _async_ids(client, space, board, options)
+    state = await _async_csv_state(client, space_id, board_id, 1, page_size, csv_safety, options)
     while True:
-        chunk = await async_read_item_export_chunk(
+        chunk = await _async_csv_chunk(
             client,
-            space=space,
-            board=board,
-            format=format,
+            space_id,
+            board_id,
+            state,
             csv_safety=csv_safety,
             page_size=page_size,
             max_items=max_items,
@@ -505,31 +592,51 @@ def read_item_export_chunk(
             next_cursor=chunk.next_cursor,
         )
 
-    board_model = client.boards.get(space_id=space_id, board_id=board_id, options=options)
-    definitions = _entity_value(board_model, "fields")
-    seed_page_number = cursor.page if cursor is not None else 1
-    listing = client.items.list(
-        space_id=space_id,
-        board_id=board_id,
-        page=seed_page_number,
+    state = _sync_csv_state(
+        client,
+        space_id,
+        board_id,
+        cursor.page if cursor is not None else 1,
+        page_size,
+        csv_safety,
+        options,
+    )
+    return _sync_csv_chunk(
+        client,
+        space_id,
+        board_id,
+        state,
+        csv_safety=csv_safety,
         page_size=page_size,
+        max_items=max_items,
+        max_bytes=max_bytes,
+        cursor=cursor,
+        include_header=include_header,
         options=options,
     )
-    seed = {"data": [_item_dict(i) for i in listing.data], "hasMore": listing.has_more}
-    definition_dicts = (
-        [_item_dict(d) for d in cast("list[Any]", definitions)]
-        if isinstance(definitions, list)
-        else None
-    )
-    schema = create_items_csv_schema(cast("list[dict[str, Any]]", seed["data"]), definition_dicts)
-    header = render_items_csv_chunk([], csv_safety, schema, include_header=True)
-    header_bytes = utf8_byte_length(header) if include_header else 0
+
+
+def _sync_csv_chunk(
+    client: PlakyClient,
+    space_id: str,
+    board_id: str,
+    state: _CsvState,
+    *,
+    csv_safety: CsvSafety,
+    page_size: int,
+    max_items: int,
+    max_bytes: int,
+    cursor: PageCursor | None,
+    include_header: bool,
+    options: RequestOverrides | None,
+) -> ItemExportChunk:
+    header_bytes = utf8_byte_length(state.header) if include_header else 0
     if header_bytes > max_bytes:
         raise PlakyMaterializationLimitError("bytes", max_bytes)
 
     def fetch_csv(page: int, size: int) -> dict[str, Any]:
-        if page == seed_page_number:
-            return seed
+        if page == state.seed_page_number:
+            return state.seed_page
         result = client.items.list(
             space_id=space_id, board_id=board_id, page=page, page_size=size, options=options
         )
@@ -541,23 +648,9 @@ def read_item_export_chunk(
         max_items=max_items,
         max_bytes=max_bytes - header_bytes,
         cursor=cursor,
-        serialize=lambda item: render_item_row(item, csv_safety, schema) + "\n",
+        serialize=lambda item: render_item_row(item, csv_safety, state.schema) + "\n",
     )
-    rows = "".join(render_item_row(item, csv_safety, schema) + "\n" for item in chunk.data)
-    if chunk.returned == 0 and chunk.complete and include_header:
-        body = ""
-    else:
-        body = (header if include_header else "") + rows
-    return ItemExportChunk(
-        format="csv",
-        body=body,
-        scanned=chunk.scanned,
-        returned=chunk.returned,
-        bytes=utf8_byte_length(body),
-        complete=chunk.complete,
-        truncated=chunk.truncated,
-        next_cursor=chunk.next_cursor,
-    )
+    return _csv_export_chunk_result(state, chunk, csv_safety, include_header)
 
 
 def iterate_item_export_chunks(
@@ -574,12 +667,35 @@ def iterate_item_export_chunks(
 ) -> Iterator[ItemExportChunk]:
     cursor: PageCursor | None = None
     first = True
+    if format == "jsonl":
+        while True:
+            chunk = read_item_export_chunk(
+                client,
+                space=space,
+                board=board,
+                format="jsonl",
+                page_size=page_size,
+                max_items=max_items,
+                max_bytes=max_bytes,
+                cursor=cursor,
+                include_header=first,
+                options=options,
+            )
+            yield chunk
+            first = False
+            if chunk.next_cursor is None:
+                return
+            cursor = chunk.next_cursor
+    # One schema for the whole export: rows in every chunk must align with
+    # the single header emitted by the first chunk.
+    space_id, board_id = _sync_ids(client, space, board, options)
+    state = _sync_csv_state(client, space_id, board_id, 1, page_size, csv_safety, options)
     while True:
-        chunk = read_item_export_chunk(
+        chunk = _sync_csv_chunk(
             client,
-            space=space,
-            board=board,
-            format=format,
+            space_id,
+            board_id,
+            state,
             csv_safety=csv_safety,
             page_size=page_size,
             max_items=max_items,
