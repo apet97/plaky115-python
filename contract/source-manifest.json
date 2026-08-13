@@ -1,0 +1,63 @@
+{
+  "sourceRepository": "https://github.com/apet97/plaky115",
+  "sourceCommit": "33ae2926aa696f36d9663d44f914d42d9aadc53f",
+  "sourceRelease": "v1.0.11",
+  "acceptedAt": "2026-08-13",
+  "upstreamProvenance": {
+    "sourceUrl": "https://docs.plaky.com/",
+    "fetchedAt": "2026-07-26T22:46:49.352Z",
+    "rawSha256": "e03c50ed74fcf994d670ff1eb9167f3fe437e2e83935def5bc1798f73c06984f",
+    "canonicalSha256": "0aa047cec4b45908b428eff54f5e6b16de1b306486a2ac182eda3b8ddb9bb5c2",
+    "operationCount": 32
+  },
+  "files": [
+    {
+      "sourcePath": "api-1.yaml",
+      "sourceSha256": "fe3e5bac33564ecd11e4d4d7c8172904883abd967b56500e946db3df2415c1b7",
+      "target": "contract/upstream.openapi.yaml",
+      "translation": "verbatim copy"
+    },
+    {
+      "sourcePath": "openapi/plaky115-expected-operations.json",
+      "sourceSha256": "8fd966c12d728885d4688b215cba604d78ac4da480614e1a516864ce5b7b2ebc",
+      "target": "contract/expected-operations.json",
+      "translation": "verbatim copy"
+    },
+    {
+      "sourcePath": "LICENSE",
+      "sourceSha256": "cf7b944cc9f00a72427697bbc05d65c622f33326977b8f63e1402317545fd288",
+      "target": "LICENSE",
+      "translation": "verbatim copy"
+    },
+    {
+      "sourcePath": "openapi/plaky115-operation-metadata.json",
+      "sourceSha256": "14b808e597055d2e7ce97044029455d35013aa2018f553881995a1d1244d5c62",
+      "target": "contract/operation-overrides.yaml",
+      "translation": "translated: MCP/safety/request/success metadata to exact-key overrides"
+    },
+    {
+      "sourcePath": "scripts/test-cross-surface-parity.mjs",
+      "sourceSha256": "f3ecb252a2cd89a7c567f2a13f963f325202cee7883affec05de3f197ac859c4",
+      "target": "contract/operation-overrides.yaml",
+      "translation": "translated: sdkInvokers map to sdk.resource/sdk.method (snake_case)"
+    },
+    {
+      "sourcePath": "overlays/plaky115-dx.overlay.yaml",
+      "sourceSha256": "566780527864dc38efce1888975d77b54943e653449fad2724a106a839606626",
+      "target": "contract/operation-overrides.yaml",
+      "translation": "reference: DX overlay whose merged output informed the overrides"
+    },
+    {
+      "sourcePath": "openapi/plaky115-dx.openapi.yaml",
+      "sourceSha256": "a3d71e9870748c3f1ef494f80313539a27d6971ab7bd75af4c2b71220bfc55bc",
+      "target": "contract/operation-overrides.yaml",
+      "translation": "reference: merged DX spec used to resolve bare-array item models"
+    },
+    {
+      "sourcePath": "openapi/upstream-manifest.json",
+      "sourceSha256": "ce8381293dda828b7c404aab48b0adeb10cd9661ab21e389dc18cfd096af6f50",
+      "target": "contract/source-manifest.json",
+      "translation": "reference: upstream fetch provenance carried into this manifest"
+    }
+  ]
+}

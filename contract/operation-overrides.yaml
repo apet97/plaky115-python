@@ -1,0 +1,863 @@
+# Operation overrides: the hand-maintained metadata layer over
+# contract/upstream.openapi.yaml. Exact-key entries; one entry per
+# operation. Ported from the pinned plaky115 source
+# (openapi/plaky115-operation-metadata.json and the sdkInvokers map in
+# scripts/test-cross-surface-parity.mjs) at
+# 33ae2926aa696f36d9663d44f914d42d9aadc53f.
+version: 1
+operations:
+  GET /v1/public/spaces:
+    operationId: listSpaces
+    summary: List workspace spaces
+    sdk:
+      resource: spaces
+      method: list
+    request:
+      kind: none
+    response:
+      root: page
+      status: 200
+      envelope: PublicPagedResponseV1SpaceResponse
+      model: SpaceResponse
+    mcp:
+      name: plaky_list_spaces
+      title: List spaces
+      scopes:
+      - read
+      annotations:
+        readOnlyHint: true
+        destructiveHint: false
+        idempotentHint: true
+        openWorldHint: true
+    confirmation: none
+    compactKind: space
+    sensitiveOutput: false
+    pagination:
+      kind: pageNumber
+      pageParameter: page
+      sizeParameter: pageSize
+  GET /v1/public/spaces/{spaceId}:
+    operationId: getSpace
+    summary: Retrieve a space
+    sdk:
+      resource: spaces
+      method: get
+    request:
+      kind: none
+    response:
+      root: object
+      status: 200
+      model: SpaceResponse
+    mcp:
+      name: plaky_get_space
+      title: Get space
+      scopes:
+      - read
+      annotations:
+        readOnlyHint: true
+        destructiveHint: false
+        idempotentHint: true
+        openWorldHint: true
+    confirmation: none
+    compactKind: space
+    sensitiveOutput: false
+  GET /v1/public/spaces/{spaceId}/boards:
+    operationId: listBoards
+    summary: List space boards
+    sdk:
+      resource: boards
+      method: list
+    request:
+      kind: none
+    response:
+      root: page
+      status: 200
+      envelope: PublicPagedResponseV1BoardResponse
+      model: BoardResponse
+    mcp:
+      name: plaky_list_boards
+      title: List boards
+      scopes:
+      - read
+      annotations:
+        readOnlyHint: true
+        destructiveHint: false
+        idempotentHint: true
+        openWorldHint: true
+    confirmation: none
+    compactKind: board
+    sensitiveOutput: false
+    pagination:
+      kind: pageNumber
+      pageParameter: page
+      sizeParameter: pageSize
+  GET /v1/public/spaces/{spaceId}/boards/{boardId}:
+    operationId: getBoard
+    summary: Retrieve a board
+    sdk:
+      resource: boards
+      method: get
+    request:
+      kind: none
+    response:
+      root: object
+      status: 200
+      model: BoardResponse
+    mcp:
+      name: plaky_get_board
+      title: Get board
+      scopes:
+      - read
+      annotations:
+        readOnlyHint: true
+        destructiveHint: false
+        idempotentHint: true
+        openWorldHint: true
+    confirmation: none
+    compactKind: board
+    sensitiveOutput: false
+  GET /v1/public/spaces/{spaceId}/boards/{boardId}/item-groups:
+    operationId: listItemGroups
+    summary: List board item groups
+    sdk:
+      resource: item_groups
+      method: list
+    request:
+      kind: none
+    response:
+      root: page
+      status: 200
+      envelope: PublicPagedResponseV1ItemGroupResponse
+      model: ItemGroupResponse
+    mcp:
+      name: plaky_list_item_groups
+      title: List item groups
+      scopes:
+      - read
+      annotations:
+        readOnlyHint: true
+        destructiveHint: false
+        idempotentHint: true
+        openWorldHint: true
+    confirmation: none
+    compactKind: itemGroup
+    sensitiveOutput: false
+    pagination:
+      kind: pageNumber
+      pageParameter: page
+      sizeParameter: pageSize
+  POST /v1/public/spaces/{spaceId}/boards/{boardId}/item-groups:
+    operationId: createItemGroup
+    summary: Create an item group
+    sdk:
+      resource: item_groups
+      method: create
+    request:
+      kind: json
+      required: true
+      model: ItemGroupCreateRequest
+    response:
+      root: object
+      status: 201
+      model: ItemGroupResponse
+    mcp:
+      name: plaky_create_item_group
+      title: Create item group
+      scopes:
+      - write
+      annotations:
+        readOnlyHint: false
+        destructiveHint: false
+        idempotentHint: false
+        openWorldHint: true
+    confirmation: none
+    compactKind: itemGroup
+    sensitiveOutput: false
+  DELETE /v1/public/spaces/{spaceId}/boards/{boardId}/item-groups/{itemGroupId}:
+    operationId: deleteItemGroup
+    summary: Delete an item group
+    sdk:
+      resource: item_groups
+      method: delete
+    request:
+      kind: none
+    response:
+      root: void
+      status: 200
+    mcp:
+      name: plaky_delete_item_group
+      title: Delete item group
+      scopes:
+      - write
+      - destructive
+      annotations:
+        readOnlyHint: false
+        destructiveHint: true
+        idempotentHint: true
+        openWorldHint: true
+    confirmation: destructive
+    compactKind: raw
+    sensitiveOutput: false
+  GET /v1/public/spaces/{spaceId}/boards/{boardId}/item-groups/{itemGroupId}:
+    operationId: getItemGroup
+    summary: Retrieve an item group
+    sdk:
+      resource: item_groups
+      method: get
+    request:
+      kind: none
+    response:
+      root: object
+      status: 200
+      model: ItemGroupResponse
+    mcp:
+      name: plaky_get_item_group
+      title: Get item group
+      scopes:
+      - read
+      annotations:
+        readOnlyHint: true
+        destructiveHint: false
+        idempotentHint: true
+        openWorldHint: true
+    confirmation: none
+    compactKind: itemGroup
+    sensitiveOutput: false
+  PUT /v1/public/spaces/{spaceId}/boards/{boardId}/item-groups/{itemGroupId}:
+    operationId: updateItemGroup
+    summary: Update an item group
+    sdk:
+      resource: item_groups
+      method: update
+    request:
+      kind: json
+      required: true
+      model: ItemGroupUpdateRequest
+    response:
+      root: object
+      status: 200
+      model: ItemGroupResponse
+    mcp:
+      name: plaky_update_item_group
+      title: Update item group
+      scopes:
+      - write
+      annotations:
+        readOnlyHint: false
+        destructiveHint: false
+        idempotentHint: true
+        openWorldHint: true
+    confirmation: none
+    compactKind: itemGroup
+    sensitiveOutput: false
+  PUT /v1/public/spaces/{spaceId}/boards/{boardId}/item-groups/{itemGroupId}/archive:
+    operationId: archiveItemGroup
+    summary: Archive an item group
+    sdk:
+      resource: item_groups
+      method: archive
+    request:
+      kind: none
+    response:
+      root: void
+      status: 200
+    mcp:
+      name: plaky_archive_item_group
+      title: Archive item group
+      scopes:
+      - write
+      - destructive
+      annotations:
+        readOnlyHint: false
+        destructiveHint: true
+        idempotentHint: true
+        openWorldHint: true
+    confirmation: destructive
+    compactKind: raw
+    sensitiveOutput: false
+  GET /v1/public/spaces/{spaceId}/boards/{boardId}/items:
+    operationId: listItems
+    summary: List board items
+    sdk:
+      resource: items
+      method: list
+    request:
+      kind: none
+    response:
+      root: page
+      status: 200
+      envelope: PublicPagedResponseV1ItemResponse
+      model: ItemResponse
+    mcp:
+      name: plaky_list_items
+      title: List board items
+      scopes:
+      - read
+      annotations:
+        readOnlyHint: true
+        destructiveHint: false
+        idempotentHint: true
+        openWorldHint: true
+    confirmation: none
+    compactKind: item
+    sensitiveOutput: false
+    pagination:
+      kind: pageNumber
+      pageParameter: page
+      sizeParameter: pageSize
+  POST /v1/public/spaces/{spaceId}/boards/{boardId}/items:
+    operationId: createItem
+    summary: Create an item
+    sdk:
+      resource: items
+      method: create
+    request:
+      kind: json
+      required: true
+      model: ItemCreateRequest
+    response:
+      root: object
+      status: 201
+      model: ItemResponse
+    mcp:
+      name: plaky_create_item
+      title: Create item
+      scopes:
+      - write
+      annotations:
+        readOnlyHint: false
+        destructiveHint: false
+        idempotentHint: false
+        openWorldHint: true
+    confirmation: none
+    compactKind: item
+    sensitiveOutput: false
+  DELETE /v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}:
+    operationId: deleteItem
+    summary: Delete an item
+    sdk:
+      resource: items
+      method: delete
+    request:
+      kind: none
+    response:
+      root: void
+      status: 200
+    mcp:
+      name: plaky_delete_item
+      title: Delete item
+      scopes:
+      - write
+      - destructive
+      annotations:
+        readOnlyHint: false
+        destructiveHint: true
+        idempotentHint: true
+        openWorldHint: true
+    confirmation: destructive
+    compactKind: raw
+    sensitiveOutput: false
+  GET /v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}:
+    operationId: getItem
+    summary: Retrieve an item
+    sdk:
+      resource: items
+      method: get
+    request:
+      kind: none
+    response:
+      root: object
+      status: 200
+      model: ItemResponse
+    mcp:
+      name: plaky_get_item
+      title: Get item
+      scopes:
+      - read
+      annotations:
+        readOnlyHint: true
+        destructiveHint: false
+        idempotentHint: true
+        openWorldHint: true
+    confirmation: none
+    compactKind: item
+    sensitiveOutput: false
+  GET /v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/comments:
+    operationId: listItemComments
+    summary: List item comments
+    sdk:
+      resource: comments
+      method: list
+    request:
+      kind: none
+    response:
+      root: array
+      status: 200
+      model: CommentResponse
+    mcp:
+      name: plaky_list_item_comments
+      title: List item comments
+      scopes:
+      - read
+      annotations:
+        readOnlyHint: true
+        destructiveHint: false
+        idempotentHint: true
+        openWorldHint: true
+    confirmation: none
+    compactKind: comment
+    sensitiveOutput: false
+  POST /v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/comments:
+    operationId: createItemComment
+    summary: Create item comment
+    sdk:
+      resource: comments
+      method: create
+    request:
+      kind: json
+      required: true
+      model: CommentRequest
+    response:
+      root: object
+      status: 200
+      model: CommentResponse
+    mcp:
+      name: plaky_create_item_comment
+      title: Create item comment
+      scopes:
+      - write
+      annotations:
+        readOnlyHint: false
+        destructiveHint: false
+        idempotentHint: false
+        openWorldHint: true
+    confirmation: none
+    compactKind: comment
+    sensitiveOutput: false
+  DELETE /v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/comments/{itemCommentId}:
+    operationId: deleteItemComment
+    summary: Delete item comment
+    sdk:
+      resource: comments
+      method: delete
+    request:
+      kind: none
+    response:
+      root: void
+      status: 200
+    mcp:
+      name: plaky_delete_item_comment
+      title: Delete item comment
+      scopes:
+      - write
+      - destructive
+      annotations:
+        readOnlyHint: false
+        destructiveHint: true
+        idempotentHint: true
+        openWorldHint: true
+    confirmation: destructive
+    compactKind: raw
+    sensitiveOutput: false
+  PUT /v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/comments/{itemCommentId}:
+    operationId: updateItemComment
+    summary: Update item comment
+    sdk:
+      resource: comments
+      method: update
+    request:
+      kind: json
+      required: true
+      model: CommentRequest
+    response:
+      root: object
+      status: 200
+      model: CommentResponse
+    mcp:
+      name: plaky_update_item_comment
+      title: Update item comment
+      scopes:
+      - write
+      annotations:
+        readOnlyHint: false
+        destructiveHint: false
+        idempotentHint: true
+        openWorldHint: true
+    confirmation: none
+    compactKind: comment
+    sensitiveOutput: false
+  PUT /v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/comments/{itemCommentId}/reactions:
+    operationId: replaceCommentReactions
+    summary: Replace comment reactions
+    sdk:
+      resource: reactions
+      method: replace
+    request:
+      kind: json
+      required: true
+      model: ReactionPutRequest
+    response:
+      root: object
+      status: 200
+      model: ReactionPutResponse
+    mcp:
+      name: plaky_replace_comment_reactions
+      title: Replace comment reactions
+      scopes:
+      - write
+      annotations:
+        readOnlyHint: false
+        destructiveHint: false
+        idempotentHint: true
+        openWorldHint: true
+    confirmation: none
+    compactKind: raw
+    sensitiveOutput: false
+  PATCH /v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/fields:
+    operationId: updateItemFields
+    summary: Update item fields
+    sdk:
+      resource: items
+      method: update_fields
+    request:
+      kind: json
+      required: true
+      model: ItemFieldsUpdateRequest
+    response:
+      root: object
+      status: 200
+      model: ItemResponse
+    mcp:
+      name: plaky_update_item_fields
+      title: Update item fields
+      scopes:
+      - write
+      annotations:
+        readOnlyHint: false
+        destructiveHint: false
+        idempotentHint: true
+        openWorldHint: true
+    confirmation: none
+    compactKind: item
+    sensitiveOutput: false
+  PATCH /v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/fields/{itemFieldKey}:
+    operationId: updateItemField
+    summary: Update one item field
+    sdk:
+      resource: items
+      method: update_field
+    request:
+      kind: json
+      required: true
+      model: FieldValueChangeRequest
+    response:
+      root: object
+      status: 200
+      model: ItemResponse
+    mcp:
+      name: plaky_update_item_field
+      title: Update item field
+      scopes:
+      - write
+      annotations:
+        readOnlyHint: false
+        destructiveHint: false
+        idempotentHint: true
+        openWorldHint: true
+    confirmation: none
+    compactKind: item
+    sensitiveOutput: false
+  GET /v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/files:
+    operationId: listItemFiles
+    summary: List item files
+    sdk:
+      resource: item_files
+      method: list
+    request:
+      kind: none
+    response:
+      root: array
+      status: 200
+      model: ItemFileResponse
+    mcp:
+      name: plaky_list_item_files
+      title: List item files
+      scopes:
+      - read
+      annotations:
+        readOnlyHint: true
+        destructiveHint: false
+        idempotentHint: true
+        openWorldHint: true
+    confirmation: none
+    compactKind: itemFile
+    sensitiveOutput: false
+  POST /v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/files:
+    operationId: uploadItemFile
+    summary: Upload an item file
+    sdk:
+      resource: item_files
+      method: upload
+    request:
+      kind: multipart
+      required: true
+      model: Base64UploadInput
+    response:
+      root: object
+      status: 201
+      model: ItemFileResponse
+    mcp:
+      name: plaky_upload_item_file
+      title: Upload item file
+      scopes:
+      - write
+      annotations:
+        readOnlyHint: false
+        destructiveHint: false
+        idempotentHint: false
+        openWorldHint: true
+    confirmation: none
+    compactKind: itemFile
+    sensitiveOutput: false
+  DELETE /v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/files/{itemFileId}:
+    operationId: deleteItemFile
+    summary: Delete an item file
+    sdk:
+      resource: item_files
+      method: delete
+    request:
+      kind: none
+    response:
+      root: void
+      status: 200
+    mcp:
+      name: plaky_delete_item_file
+      title: Delete item file
+      scopes:
+      - write
+      - destructive
+      annotations:
+        readOnlyHint: false
+        destructiveHint: true
+        idempotentHint: true
+        openWorldHint: true
+    confirmation: destructive
+    compactKind: raw
+    sensitiveOutput: false
+  GET /v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/files/{itemFileId}:
+    operationId: getItemFile
+    summary: Retrieve an item file
+    sdk:
+      resource: item_files
+      method: get
+    request:
+      kind: none
+    response:
+      root: object
+      status: 200
+      model: ItemFileResponse
+    mcp:
+      name: plaky_get_item_file
+      title: Get item file
+      scopes:
+      - read
+      annotations:
+        readOnlyHint: true
+        destructiveHint: false
+        idempotentHint: true
+        openWorldHint: true
+    confirmation: none
+    compactKind: itemFile
+    sensitiveOutput: false
+  PUT /v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/files/{itemFileId}:
+    operationId: updateItemFile
+    summary: Update an item file
+    sdk:
+      resource: item_files
+      method: update
+    request:
+      kind: json
+      required: true
+      model: ItemFileUpdateRequest
+    response:
+      root: object
+      status: 200
+      model: ItemFileResponse
+    mcp:
+      name: plaky_update_item_file
+      title: Update item file
+      scopes:
+      - write
+      annotations:
+        readOnlyHint: false
+        destructiveHint: false
+        idempotentHint: true
+        openWorldHint: true
+    confirmation: none
+    compactKind: itemFile
+    sensitiveOutput: false
+  GET /v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/files/{itemFileId}/download:
+    operationId: getItemFileDownload
+    summary: Get an item file download link
+    sdk:
+      resource: item_files
+      method: get_download
+    request:
+      kind: none
+    response:
+      root: object
+      status: 200
+      model: ItemFileDownloadResponse
+    mcp:
+      name: plaky_get_item_file_download
+      title: Get item file download
+      scopes:
+      - read
+      annotations:
+        readOnlyHint: true
+        destructiveHint: false
+        idempotentHint: true
+        openWorldHint: true
+    confirmation: none
+    compactKind: downloadLink
+    sensitiveOutput: true
+  GET /v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/sub-items:
+    operationId: listSubitems
+    summary: List subitems
+    sdk:
+      resource: items
+      method: list_subitems
+    request:
+      kind: none
+    response:
+      root: page
+      status: 200
+      envelope: PublicPagedResponseV1ItemResponse
+      model: ItemResponse
+    mcp:
+      name: plaky_list_subitems
+      title: List subitems
+      scopes:
+      - read
+      annotations:
+        readOnlyHint: true
+        destructiveHint: false
+        idempotentHint: true
+        openWorldHint: true
+    confirmation: none
+    compactKind: item
+    sensitiveOutput: false
+    pagination:
+      kind: pageNumber
+      pageParameter: page
+      sizeParameter: pageSize
+  GET /v1/public/teams:
+    operationId: listTeams
+    summary: List workspace teams
+    sdk:
+      resource: teams
+      method: list
+    request:
+      kind: none
+    response:
+      root: page
+      status: 200
+      envelope: PublicPagedResponseV1TeamResponse
+      model: TeamResponse
+    mcp:
+      name: plaky_list_teams
+      title: List teams
+      scopes:
+      - read
+      annotations:
+        readOnlyHint: true
+        destructiveHint: false
+        idempotentHint: true
+        openWorldHint: true
+    confirmation: none
+    compactKind: raw
+    sensitiveOutput: false
+    pagination:
+      kind: pageNumber
+      pageParameter: page
+      sizeParameter: pageSize
+  GET /v1/public/teams/{teamId}:
+    operationId: getTeam
+    summary: Retrieve a team
+    sdk:
+      resource: teams
+      method: get
+    request:
+      kind: none
+    response:
+      root: object
+      status: 200
+      model: TeamResponse
+    mcp:
+      name: plaky_get_team
+      title: Get team
+      scopes:
+      - read
+      annotations:
+        readOnlyHint: true
+        destructiveHint: false
+        idempotentHint: true
+        openWorldHint: true
+    confirmation: none
+    compactKind: raw
+    sensitiveOutput: false
+  GET /v1/public/users:
+    operationId: listUsers
+    summary: List workspace users
+    sdk:
+      resource: users
+      method: list
+    request:
+      kind: none
+    response:
+      root: page
+      status: 200
+      envelope: PublicPagedResponseV1UserResponse
+      model: UserResponse
+    mcp:
+      name: plaky_list_users
+      title: List users
+      scopes:
+      - read
+      annotations:
+        readOnlyHint: true
+        destructiveHint: false
+        idempotentHint: true
+        openWorldHint: true
+    confirmation: none
+    compactKind: raw
+    sensitiveOutput: false
+    pagination:
+      kind: pageNumber
+      pageParameter: page
+      sizeParameter: pageSize
+  GET /v1/public/users/me:
+    operationId: getCurrentUser
+    summary: Retrieve current user
+    sdk:
+      resource: users
+      method: me
+    request:
+      kind: none
+    response:
+      root: object
+      status: 200
+      model: UserResponse
+    mcp:
+      name: plaky_get_current_user
+      title: Get current user
+      scopes:
+      - read
+      annotations:
+        readOnlyHint: true
+        destructiveHint: false
+        idempotentHint: true
+        openWorldHint: true
+    confirmation: none
+    compactKind: raw
+    sensitiveOutput: false
