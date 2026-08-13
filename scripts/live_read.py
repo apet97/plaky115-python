@@ -17,7 +17,6 @@ from __future__ import annotations
 
 # pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
 # pyright: reportUnknownArgumentType=false
-
 import asyncio
 import json
 import os
