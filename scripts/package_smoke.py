@@ -13,6 +13,7 @@ Proves, in fresh virtual environments outside the source tree:
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import tempfile
@@ -47,6 +48,12 @@ def use_mcp() -> None:
     settings = ServerSettings(api_key="plk_placeholder")
     build_server(settings)
 '''
+
+
+def _venv_python(env_dir: Path) -> str:
+    if os.name == "nt":
+        return str(env_dir / "Scripts" / "python.exe")
+    return str(env_dir / "bin" / "python")
 
 
 def run(cmd: list[str]) -> subprocess.CompletedProcess[str]:
@@ -84,7 +91,7 @@ def main() -> int:
         # Base environment: SDK only, no mcp.
         base_env = base / "venv-base"
         run(["uv", "venv", str(base_env)])
-        base_python = str(base_env / "bin" / "python")
+        base_python = _venv_python(base_env)
         run(["uv", "pip", "install", "--quiet", "--python", base_python, str(wheel)])
         run(
             [
@@ -109,7 +116,7 @@ def main() -> int:
         # MCP environment: extra installed.
         mcp_env = base / "venv-mcp"
         run(["uv", "venv", str(mcp_env)])
-        mcp_python = str(mcp_env / "bin" / "python")
+        mcp_python = _venv_python(mcp_env)
         run(
             [
                 "uv",
@@ -133,7 +140,7 @@ def main() -> int:
             capture_output=True,
             text=True,
             timeout=60,
-            env={"PLAKY115_API_KEY": "plk_smoke_key", "PATH": "/usr/bin:/bin"},
+            env={**os.environ, "PLAKY115_API_KEY": "plk_smoke_key"},
             check=False,
         )
         assert stdio.stdout == "", f"stdio stdout not protocol-clean: {stdio.stdout[:200]!r}"

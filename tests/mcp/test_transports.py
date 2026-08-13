@@ -1,6 +1,7 @@
 """Phase 12 transport gates: stdio subprocess, stateless Streamable HTTP, CLI."""
 
 import json
+import os
 import socket
 import subprocess
 import sys
@@ -58,9 +59,9 @@ def _stdio_params(base_url: str, *extra: str) -> StdioServerParameters:
         command=sys.executable,
         args=["-m", "plaky115_mcp.cli", "--transport", "stdio", *extra],
         env={
+            **os.environ,
             "PLAKY115_API_KEY": "plk_test_key",
             "PLAKY115_BASE_URL": base_url,
-            "PATH": "/usr/bin:/bin",
         },
         cwd=str(REPO),
     )
@@ -168,7 +169,10 @@ def _run_cli(*argv: str, env: dict[str, str] | None = None) -> subprocess.Comple
         text=True,
         timeout=30,
         cwd=REPO,
-        env={"PATH": "/usr/bin:/bin", **(env or {})},
+        env={
+            **{k: v for k, v in os.environ.items() if not k.startswith("PLAKY115_")},
+            **(env or {}),
+        },
         check=False,
     )
 
