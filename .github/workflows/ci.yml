@@ -1,0 +1,52 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python: "3.11"
+          - os: ubuntu-latest
+            python: "3.12"
+          - os: ubuntu-latest
+            python: "3.13"
+          - os: ubuntu-latest
+            python: "3.14"
+          - os: windows-latest
+            python: "3.13"
+          - os: macos-latest
+            python: "3.13"
+    runs-on: ${{ matrix.os }}
+    steps:
+      # actions/checkout v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+      # actions/setup-python v5.3.0
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install uv (pinned)
+        run: python -m pip install uv==0.9.18
+      - name: Sync
+        run: uv sync --frozen --all-extras --group dev
+      - name: Offline verification
+        run: uv run python scripts/verify.py --offline
+        if: hashFiles('scripts/verify.py') != ''
+      - name: Focused gates (until verify.py lands)
+        if: hashFiles('scripts/verify.py') == ''
+        run: |
+          uv run ruff format --check .
+          uv run ruff check .
+          uv run pyright
+          uv run pytest

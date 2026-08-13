@@ -1,0 +1,4 @@
+# Minimal exact JSON Pointer patches for confirmed upstream defects.
+# Each entry: {pointer: "#/...", op: replace|add|remove, value: ...}.
+# No confirmed defects at the pinned baseline.
+patches: []

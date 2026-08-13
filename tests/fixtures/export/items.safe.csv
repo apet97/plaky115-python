@@ -1,0 +1,5 @@
+Status,flag,id,minus,notes,nothing,tabbed,title,unicode,Boolean,"Comma ""Field""",Formula,Meta,No Key [#1],No Key [#2],Nullish,Status [status-a],Status [status-b],title [title-field]
+top-level status,true,1,'  -42,"line1
+line2, ""quoted""",,'	@cmd,'=SUM(A1:A2),"Živjo, 世界",,,,"{""a"":[true,null,{""a"":""x"",""β"":""λ""}],""z"":1}",'@missing,'-second,,'+Open,'=Other,field must not overwrite
+top2,false,2,safe,plain,,safe,Normal,é,false,"value,with
+newline",'=1+1,"{""a"":[true,null,{""a"":""x"",""β"":""λ""}],""z"":1}",safe missing row slot1,,,'  =Open,'@Closed,

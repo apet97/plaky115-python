@@ -1,0 +1,2571 @@
+---
+components:
+  schemas:
+    BoardDefaultValues:
+      properties:
+        defaultAttributes:
+          additionalProperties: {}
+          description: |-
+            Represents configured default attribute values applied to new items created on this board.
+            "The keys are unique attribute keys, and the values are the default data for that attribute.
+          example:
+            status-1: '1'
+            tag-1:
+            - '1'
+            - '2'
+          type: object
+        groupId:
+          description: Represents configured default item group in the board.
+          format: int64
+          type: integer
+        subscribedTeamIds:
+          description: Represents list of configured team ids which are by default
+            added as subscribers to the new item in the board.
+          items:
+            format: int64
+            type: integer
+          type: array
+        subscribedUserIds:
+          description: Represents list of configured user ids which are by default
+            added as subscribers to the new item in the board.
+          items:
+            format: int64
+            type: integer
+          type: array
+        title:
+          description: Represents configured default item title in the board.
+          type: string
+      type: object
+    BoardResponse:
+      description: Represents board response.
+      properties:
+        defaultBoard:
+          description: Indicates if the board is default.
+          type: boolean
+        defaultValues:
+          "$ref": "#/components/schemas/BoardDefaultValues"
+          description: Represents configured default values used when creating new
+            item.
+        description:
+          description: Represents description of the board.
+          type: string
+        editPermissionsMode:
+          description: Represents permission modes for the board edit actions.
+          enum:
+          - EVERYTHING
+          - CONTENT
+          - UPDATES
+          type: string
+        fields:
+          items:
+            "$ref": "#/components/schemas/ItemAttributeDefinition"
+            description: Represents list of item field definitions present in the
+              board.
+          type: array
+        folder:
+          description: Represents folder containing the board. Can be returned as
+            an ID or a full object if expanded.
+          oneOf:
+          - "$ref": "#/components/schemas/FolderResponse"
+          - format: int64
+            type: integer
+        groups:
+          items:
+            "$ref": "#/components/schemas/ItemGroupResponse"
+            description: Represents list of item group definitions present in the
+              board.
+          type: array
+        id:
+          description: Represents unique identifier of the board.
+          format: int64
+          type: integer
+        kind:
+          description: Represents type of the board.
+          enum:
+          - PUBLIC
+          - PRIVATE
+          type: string
+        ranking:
+          description: Represents lexicographical string used for the board ordering.
+          type: string
+        space:
+          description: Represents space containing the board. Can be returned as an
+            ID or a full object if expanded.
+          oneOf:
+          - "$ref": "#/components/schemas/SpaceResponse"
+          - format: int64
+            type: integer
+        template:
+          description: If true, it means the board serves as a template for generating
+            other production-ready boards.
+          type: boolean
+        title:
+          description: Represents title of the board.
+          type: string
+      type: object
+    CommentRequest:
+      description: Represents item comment request.
+      properties:
+        repliesToId:
+          description: Represents comment ID to reply to.
+          example: 1
+          format: int64
+          type: integer
+        text:
+          description: Represents text of the comment.
+          example: My comment.
+          minLength: 1
+          type: string
+      required:
+      - text
+      type: object
+    CommentResponse:
+      description: Represents item comment response.
+      properties:
+        content:
+          description: Represents content of the comment.
+          type: string
+        createdAt:
+          description: Represents date and time of the comment creation (UTC) in ISO-8601
+            format.
+          format: date-time
+          type: string
+        createdBy:
+          description: Represents ID of the user who created the comment.
+          format: int64
+          type: integer
+        deleted:
+          description: Indicates whether the comment is softly deleted.
+          type: boolean
+        id:
+          description: Represents unique item comment identifier across the system.
+          format: int64
+          type: integer
+        pinned:
+          description: Indicates whether the comment is pinned.
+          type: boolean
+        reactions:
+          description: Represents reactions to the comment.
+          items:
+            "$ref": "#/components/schemas/ReactionResponse"
+          type: array
+        replies:
+          description: Represents replies to the comment.
+          items:
+            "$ref": "#/components/schemas/CommentResponse"
+          type: array
+        updatedAt:
+          description: Represents date and time of the comment update (UTC) in ISO-8601
+            format.
+          format: date-time
+          type: string
+      type: object
+    DateTimeConfiguration:
+      allOf:
+      - "$ref": "#/components/schemas/ItemAttributeConfiguration"
+      - properties:
+          alwaysKeepAddTimeOn:
+            description: Represents whether the time component is displayed.
+            type: boolean
+          showCurrentYear:
+            description: Represents whether the year in the date format is displayed.
+            type: boolean
+          showDayOfTheWeek:
+            description: Represents whether the name of the day is displayed.
+            type: boolean
+          showWeekNumbers:
+            description: Represents whether week number is displayed.
+            type: boolean
+        type: object
+      description: Represents configuration for date-time attribute.
+    FieldValueChangeRequest:
+      description: Represents request for item field value change.
+      properties:
+        value:
+          description: |
+            Represents item field value. Field value differs per type and for some types it can be specified in multiple ways.
+
+            | Type | Examples (Key / Title) |
+            | :--- | :--- |
+            | **String** | `{"value" : "test"}`|
+            | **Rich Text** | `{"value" : "some rich text"}`
+            | **Number** | `{"value" : 13.4}` |
+            | **Date** | `{"value" : "2017-06-02T18:10:15.254Z"}` |
+            | **Timeline** | `{"value" : {"start" : "2026-01-02T18:10:15.254Z", "end": "2026-02-02T18:10:15.254Z"}}` |
+            | **Status** | `{"value" : "1"}`, `{"value" : "To do"}` |
+            | **Tag** | `{"value" : ["1", "2"]}`, `{"value" : ["Product", "HR"]}` |
+            | **Link** | `{"value" : "https://www.google.com"}`, `{"value" : {"url" : "https://www.google.com", "displayText" : "Google"}}`  |
+            | **Person** | `{"value": {"users" : [{"id" : "1"}, {"email" : "test@gmail.com"}], "teams": [{"id" : 1}, {"title" : "Backend Team"}]}}`|
+          example:
+            value: To do
+      type: object
+    FolderResponse:
+      description: Represents folder response.
+      properties:
+        id:
+          description: Represents unique folder identifier across the system.
+          format: int64
+          type: integer
+        ranking:
+          description: Represents lexicographical string used for ordering.
+          type: string
+        title:
+          description: Represents title of the item group.
+          type: string
+      type: object
+    ItemAttributeConfiguration: {}
+    ItemAttributeDefinition:
+      properties:
+        configuration:
+          description: Represents configuration of the item attribute.
+          oneOf:
+          - "$ref": "#/components/schemas/DateTimeConfiguration"
+          - "$ref": "#/components/schemas/NoConfiguration"
+          - "$ref": "#/components/schemas/NumberConfiguration"
+          - "$ref": "#/components/schemas/PersonConfiguration"
+          - "$ref": "#/components/schemas/StatusConfiguration"
+          - "$ref": "#/components/schemas/TagConfiguration"
+          - "$ref": "#/components/schemas/TimelineConfiguration"
+        description:
+          description: Represents description of the item attribute.
+          type: string
+        id:
+          description: Represents unique identifier of the item attribute.
+          format: int64
+          type: integer
+        key:
+          description: Represents key of the item attribute.
+          type: string
+        name:
+          description: Represents name of the item attribute.
+          type: string
+        type:
+          description: Represents type of the item attribute.
+          enum:
+          - STRING
+          - NUMBER
+          - DATE_TIME
+          - STATUS
+          - TAG
+          - PERSON
+          - RICH_TEXT
+          - LINK
+          - TIMELINE
+          type: string
+      type: object
+    ItemCreateRequest:
+      description: Represents item create request.
+      properties:
+        fields:
+          additionalProperties: {}
+          description: |
+            Represents item field values added to the item. If it is omitted then item will be created with default values. Field can be
+            specified by it's key or by it's title. Field value differs per type and for some types it can be specified in multiple ways.
+
+            | Type | Examples (Key / Title) |
+            | :--- | :--- |
+            | **String** | `{"string-1" : "test"}` <br> `{"String Field Title" : "test"}` |
+            | **Rich Text** | `{"rich_text-1" : "some rich text"}` <br> `{"Description" : "some rich text"}` |
+            | **Number** | `{"number-1" : 13.4}` <br> `{"Price" : 13.4}` |
+            | **Date** | `{"date_time-1" : "2017-06-02T18:10:15.254Z"}` <br> `{"Date" : "2017-06-02T18:10:15.254Z"}` |
+            | **Timeline** | `{"timeline-1" : {"start" : "2026-01-02T18:10:15.254Z", "end": "2026-02-02T18:10:15.254Z"}}` <br> `{"Timeline" : {"start" : "2026-01-02T18:10:15.254Z", "end": "2026-02-02T18:10:15.254Z"}}` |
+            | **Status** | `{"status-1" : "1"}`, `{"status-1" : "To do"}` <br> `{"Status" : "1"}`, `{"Status" : "To do"}` |
+            | **Tag** | `{"tag-1" : ["1", "2"]}`, `{"tag-1" : ["Product", "HR"]}` <br> `{"Department" : ["1", "2"]}`, `{"Department" : ["Product", "HR"]}` |
+            | **Link** | `{"link-1" : "https://www.google.com"}` <br> `{"link-1" : {"url" : "https://www.google.com", "displayText" : "Google"}}` <br> `{"Link" : "https://www.google.com"}` |
+            | **Person** | `{"person-1": {"users" : [{"id" : "1"}, {"email" : "test@gmail.com"}], "teams": [{"id" : 1}, {"title" : "Backend Team"}]}}` <br> `{"Assignee": {"users" : [{"id" : "1"}, {"email" : "test@gmail.com"}], "teams": [{"id" : 1}, {"title" : "Backend Team"}]}}` |
+          example:
+            Description: Test description
+            Status: To do
+            number-1: 50
+          type: object
+        groupId:
+          description: |-
+            Represents ID of the item group in which item is created. If it is not specified then **groupTitle** field
+            will be used for determining in which group item is created.
+          example: 1
+          format: int64
+          type: integer
+        groupTitle:
+          description: |-
+            Represents title of the item group in which item is created. If neither **groupId** nor **groupTitle** field is
+            not specified then item will be created in the first group in the board.
+          example: Backlog
+          type: string
+        parentId:
+          description: |-
+            Represents ID of the parent under which subitem is created. If it has null value then item is created, if
+            it is specified then subitem is created under specified parent.
+          example: 1
+          format: int64
+          type: integer
+        title:
+          description: |-
+            Represents title of the item. If it is not provided then default title be set. Default title for item is New Item and
+            for subitem it is New Subitem.
+          example: My New Item
+          maxLength: 255
+          type: string
+      type: object
+    ItemFieldResponse:
+      description: Represents item field response.
+      properties:
+        key:
+          description: Represents key of the item field.
+          examples:
+          - status-1
+          - tag-1
+          - person-1
+          type: string
+        title:
+          description: Represents title of the item field.
+          type: string
+        type:
+          description: Represents type of the item field.
+          enum:
+          - STRING
+          - NUMBER
+          - DATE_TIME
+          - STATUS
+          - TAG
+          - PERSON
+          - RICH_TEXT
+          - TIMELINE
+          - LINK
+          type: string
+        value:
+          description: |
+            Represents the value of an item field. This field is **expandable**.
+            By default, it returns a **Short** version (primitive/simple ID).
+            If expanded, it returns a **Full** version (object with metadata).
+
+            ### Value Mapping Table
+
+            | Field Type | Short Version (Default) | Full Version (Expanded) |
+            | :--- | :--- | :--- |
+            | **Text** | `string` | `string` |
+            | **Number** | `number` | `number` |
+            | **Date** | `string` (ISO 8601) | `string` (ISO 8601) |
+            | **Status** | `string` (key) | `object` (key, label, color) |
+            | **Tag** | `array<string>` (keys) | `array<object>` (key, label, color) |
+            | **Link** | `object` (url, displayText) | `object` (url, displayText) |
+            | **Timeline** | `object` (start, end) | `object` (start, end) |
+            | **Person** | `object` (assigned IDs) | `object` (full User/Team objects) |
+      type: object
+    ItemFileDownloadResponse:
+      description: Represents item file download response.
+      properties:
+        expiresInSeconds:
+          description: Represents presigned URL validity period in seconds.
+          format: int64
+          type: integer
+        url:
+          description: Represents presigned URL for file download.
+          type: string
+      type: object
+    ItemFileResponse:
+      description: Represents item file response.
+      properties:
+        createdAt:
+          description: Represents date and time of the file upload (UTC) in ISO-8601
+            format.
+          format: date-time
+          type: string
+        description:
+          description: Represents item file description.
+          type: string
+        extension:
+          description: Represents item file extension.
+          example: pdf
+          type: string
+        fileType:
+          description: Represents item file type.
+          example: PDF
+          type: string
+        id:
+          description: Represents unique item file identifier across the system.
+          format: int64
+          type: integer
+        name:
+          description: Represents item file name.
+          type: string
+        size:
+          description: Represents item file size in bytes.
+          format: int64
+          type: integer
+        uploadedBy:
+          description: Represents ID of the user who uploaded the file.
+          format: int64
+          type: integer
+      type: object
+    ItemFileUpdateRequest:
+      description: Represents item file update request.
+      properties:
+        description:
+          description: Represents item file description.
+          maxLength: 255
+          minLength: 0
+          type: string
+        name:
+          description: The new name for the file. You may include or omit the extension;
+            the system will preserve the original file type regardless.
+          maxLength: 255
+          minLength: 1
+          type: string
+      required:
+      - name
+      type: object
+    ItemGroupCreateRequest:
+      properties:
+        color:
+          description: Represents color of the item group. Color value must be in
+            standard RGB hexadecimal format.
+          type: string
+        ranking:
+          description: Represents lexicographical string used for custom ordering/sorting.
+          type: string
+        title:
+          description: Represents title of the item group.
+          maxLength: 255
+          minLength: 1
+          type: string
+      required:
+      - title
+      type: object
+    ItemGroupResponse:
+      description: Represents item group response.
+      properties:
+        color:
+          description: Represents color of the item group. Color value is in standard
+            RGB hexadecimal format.
+          type: string
+        id:
+          description: Represents unique item group identifier across the system.
+          format: int64
+          type: integer
+        ranking:
+          description: Represents lexicographical string used for custom ordering/sorting.
+          type: string
+        title:
+          description: Represents title of the item group.
+          type: string
+      type: object
+    ItemGroupUpdateRequest:
+      properties:
+        color:
+          description: Represents color of the item group. Color value must be in
+            standard RGB hexadecimal format.
+          type: string
+        ranking:
+          description: Represents lexicographical string used for custom ordering/sorting.
+          minLength: 1
+          type: string
+        title:
+          description: Represents title of the item group.
+          maxLength: 255
+          minLength: 1
+          type: string
+      required:
+      - ranking
+      - title
+      type: object
+    ItemResponse:
+      description: Represents extendable item response.
+      properties:
+        archived:
+          description: Indicates whether the item is archived.
+          type: boolean
+        board:
+          description: Represents ID of the board in which item is created, it can
+            be expanded to include full board details.
+          oneOf:
+          - "$ref": "#/components/schemas/BoardResponse"
+          - format: int64
+            type: integer
+        commentCount:
+          description: Represents number of comments added on the item.
+          format: int32
+          type: integer
+        createdAt:
+          description: Represents date and time of the item creation (UTC) in ISO-8601
+            format.
+          format: date-time
+          type: string
+        createdBy:
+          description: Represents ID of the user who created the item, it can be expanded
+            to retrieve full user details.
+          oneOf:
+          - "$ref": "#/components/schemas/ShortUserResponse"
+          - format: int64
+            type: integer
+        deleted:
+          description: Indicates whether the item is softly deleted.
+          type: boolean
+        deletedAt:
+          description: Represents date and time of the item soft deletion (UTC) in
+            ISO-8601 format.
+          format: date-time
+          type: string
+        fields:
+          description: |
+            Represents list of the item fields present on the item. In default response values for status, tag and person
+            fields are simple IDs. Response can be expanded to include full details for status, tag and person fields.
+          items:
+            "$ref": "#/components/schemas/ItemFieldResponse"
+          type: array
+        fileCount:
+          description: Represents number of files uploaded on the item.
+          format: int32
+          type: integer
+        group:
+          description: Represents ID of the group in which item is created, it can
+            be expanded to include full group details.
+          oneOf:
+          - "$ref": "#/components/schemas/ItemGroupResponse"
+          - format: int64
+            type: integer
+        id:
+          description: Represents unique item identifier across the system.
+          format: int64
+          type: integer
+        parent:
+          description: Represents ID of the parent for subitem, it can be expanded
+            to include full item details. It is non-null only for subitems.
+          oneOf:
+          - "$ref": "#/components/schemas/ItemResponse"
+          - format: int64
+            type: integer
+        ranking:
+          description: Represents item ranking.
+          type: string
+        space:
+          description: Represents ID of the space in which item is created, it can
+            be expanded to include full space details
+          oneOf:
+          - "$ref": "#/components/schemas/SpaceResponse"
+          - format: int64
+            type: integer
+        subitems:
+          items:
+            "$ref": "#/components/schemas/ItemResponse"
+            description: Represents list of subitems.
+          type: array
+        subscribedTeams:
+          items:
+            description: Represents list of subscribed team ids to the item, it can
+              be expanded to include full team details.
+            oneOf:
+            - "$ref": "#/components/schemas/TeamShortResponse"
+            - format: int64
+              type: integer
+          type: array
+        subscribedUsers:
+          items:
+            description: Represents list of subscribed user ids to the item, it can
+              be expanded to include full user details.
+            oneOf:
+            - "$ref": "#/components/schemas/ShortUserResponse"
+            - format: int64
+              type: integer
+          type: array
+        title:
+          description: Represents item title.
+          type: string
+      type: object
+    NoConfiguration:
+      allOf:
+      - "$ref": "#/components/schemas/ItemAttributeConfiguration"
+      description: Represent empty configuration object used for attribute types that
+        do not require extra settings.
+    NumberConfiguration:
+      allOf:
+      - "$ref": "#/components/schemas/ItemAttributeConfiguration"
+      - properties:
+          alignment:
+            description: Represents text alignment of the number within the cell.
+            enum:
+            - LEFT
+            - RIGHT
+            - CENTER
+            - NONE
+            type: string
+          customUnitValue:
+            description: Represents a custom string value for the unit if unit type
+              is custom.
+            type: string
+          unit:
+            description: Represents the type of unit to display.
+            enum:
+            - DOLLAR
+            - EURO
+            - POUND
+            - PERCENTAGE
+            - CUSTOM_UNIT
+            - NONE
+            type: string
+          unitAlignment:
+            description: Represents positioning of the unit relative to the number.
+            enum:
+            - LEFT
+            - RIGHT
+            type: string
+        type: object
+      description: Represents configuration for number attribute.
+    PersonConfiguration:
+      allOf:
+      - "$ref": "#/components/schemas/ItemAttributeConfiguration"
+      - properties:
+          limit:
+            description: Represents limit configuration for the number of persons
+              that can be assigned.
+            enum:
+            - ONE
+            - TWO
+            - THREE
+            - UNLIMITED
+            type: string
+        type: object
+      description: Configuration for person attribute.
+    PublicPagedResponseV1BoardResponse:
+      properties:
+        data:
+          description: The list of elements returned for the current page.
+          items:
+            "$ref": "#/components/schemas/BoardResponse"
+          type: array
+        hasMore:
+          description: Whether there are more elements available beyond this current
+            set.
+          type: boolean
+      type: object
+    PublicPagedResponseV1ItemGroupResponse:
+      properties:
+        data:
+          description: The list of elements returned for the current page.
+          items:
+            "$ref": "#/components/schemas/ItemGroupResponse"
+          type: array
+        hasMore:
+          description: Whether there are more elements available beyond this current
+            set.
+          type: boolean
+      type: object
+    PublicPagedResponseV1ItemResponse:
+      properties:
+        data:
+          description: The list of elements returned for the current page.
+          items:
+            "$ref": "#/components/schemas/ItemResponse"
+          type: array
+        hasMore:
+          description: Whether there are more elements available beyond this current
+            set.
+          type: boolean
+      type: object
+    PublicPagedResponseV1SpaceResponse:
+      properties:
+        data:
+          description: The list of elements returned for the current page.
+          items:
+            "$ref": "#/components/schemas/SpaceResponse"
+          type: array
+        hasMore:
+          description: Whether there are more elements available beyond this current
+            set.
+          type: boolean
+      type: object
+    PublicPagedResponseV1TeamResponse:
+      properties:
+        data:
+          description: The list of elements returned for the current page.
+          items:
+            "$ref": "#/components/schemas/TeamResponse"
+          type: array
+        hasMore:
+          description: Whether there are more elements available beyond this current
+            set.
+          type: boolean
+      type: object
+    PublicPagedResponseV1UserResponse:
+      properties:
+        data:
+          description: The list of elements returned for the current page.
+          items:
+            "$ref": "#/components/schemas/UserResponse"
+          type: array
+        hasMore:
+          description: Whether there are more elements available beyond this current
+            set.
+          type: boolean
+      type: object
+    Reaction:
+      properties:
+        value:
+          description: |
+            A code representing an emoji, like "1f44d" (thumbs up) or "2705" (checkmark button).
+            You'll see there are variations on how an emoji could be represented, we need a unicode representation
+            without "U+" prefix. For example, the unicode for "thumbs up" is "U+1F44D", so take it after the plus
+            sign (letter case doesn't matter).
+          example: 1f44d
+          minLength: 1
+          type: string
+      required:
+      - value
+      type: object
+    ReactionDetails:
+      description: Represents user reaction details.
+      properties:
+        reactedAt:
+          description: Represents date and time of the comment reaction creation (UTC)
+            in ISO-8601 format.
+          format: date-time
+          type: string
+        userId:
+          description: Represents unique user identifier accross the system.
+          format: int64
+          type: integer
+      type: object
+    ReactionPutRequest:
+      description: Represents request for adding/removing authenticated user's comment
+        reaction(s).
+      properties:
+        reactions:
+          description: |
+            You can leave multiple reactions, it's overriding the current ones that you've left,
+            leave empty to remove them.
+          items:
+            "$ref": "#/components/schemas/Reaction"
+          type: array
+          uniqueItems: true
+      required:
+      - reactions
+      type: object
+    ReactionPutResponse:
+      description: Represents response on reaction(s) change.
+      properties:
+        reactions:
+          additionalProperties:
+            items:
+              "$ref": "#/components/schemas/ReactionResponseNoCode"
+            type: array
+          description: |
+            A map containing reaction code as a key and the list of reactions without code
+            (ReactionResponseNoCode) as a value.
+          type: object
+      type: object
+    ReactionResponse:
+      description: Represents detailed comment reaction response.
+      properties:
+        reactedUsers:
+          description: Represents a list of users who left the comment reaction.
+          items:
+            "$ref": "#/components/schemas/ReactionDetails"
+          type: array
+        reactionCode:
+          description: 'Represents the string code of the emoji. For example, for
+            thumbs up emoji, we have "1f44d" code.
+
+'
+          type: string
+      type: object
+    ReactionResponseNoCode:
+      description: Represents item comment reaction response without reaction code.
+      properties:
+        createdAt:
+          description: Represents date and time of the comment reaction creation (UTC)
+            in ISO-8601 format.
+          format: date-time
+          type: string
+        createdById:
+          description: Represents ID of the user who created the comment reaction.
+          format: int64
+          type: integer
+      type: object
+    ShortUserResponse:
+      description: Represents short user response.
+      properties:
+        email:
+          description: Represents user's email.
+          type: string
+        id:
+          description: Represents unique user identifier across the system.
+          format: int64
+          type: integer
+        name:
+          description: Represents user's name.
+          type: string
+        type:
+          description: Represents type of the user.
+          enum:
+          - OWNER
+          - ADMIN
+          - MEMBER
+          - VIEWER
+          type: string
+      type: object
+    SpaceResponse:
+      description: Represents space response.
+      properties:
+        boards:
+          items:
+            "$ref": "#/components/schemas/BoardResponse"
+            description: List of boards present in the space.
+          type: array
+        defaultSpace:
+          description: Indicates whether the space is the default one.
+          type: boolean
+        description:
+          description: Represents description of the space.
+          type: string
+        iconUrl:
+          description: Represents url of the space icon.
+          type: string
+        id:
+          description: Represents unique identifier of the space.
+          format: int64
+          type: integer
+        kind:
+          description: Represent kind of the space.
+          enum:
+          - OPEN
+          - CLOSED
+          type: string
+        title:
+          description: Represents title of the space.
+          type: string
+      type: object
+    StatusConfiguration:
+      allOf:
+      - "$ref": "#/components/schemas/ItemAttributeConfiguration"
+      - properties:
+          defaultValue:
+            description: Represents the key of the default status label.
+            type: string
+          values:
+            description: Represents list of possible status labels.
+            items:
+              "$ref": "#/components/schemas/StatusLabelDefinition"
+            type: array
+        type: object
+      description: Represents configuration for status attribute.
+    StatusLabelDefinition:
+      properties:
+        color:
+          description: Represents the hexadecimal color code representing the status.
+          type: string
+        isFinal:
+          description: Indicates if this status represents a 'completed' state in
+            the workflow.
+          type: boolean
+        key:
+          description: Represents the unique identifier/key for the status label.
+          type: string
+        title:
+          description: Represents the display title of the status.
+          type: string
+      type: object
+    TagConfiguration:
+      allOf:
+      - "$ref": "#/components/schemas/ItemAttributeConfiguration"
+      - properties:
+          values:
+            description: List of possible tag definitions available.
+            items:
+              "$ref": "#/components/schemas/TagLabelDefinition"
+            type: array
+        type: object
+      description: Configuration for tag attribute.
+    TagLabelDefinition:
+      properties:
+        color:
+          description: Represents the hexadecimal color code representing the status.
+          type: string
+        key:
+          description: Represents the unique identifier/key for the status label.
+          type: string
+        title:
+          description: Represents the display title of the status.
+          type: string
+      type: object
+    TeamResponse:
+      description: Represents team response.
+      properties:
+        allUsersTeam:
+          description: Indicates if the team is all users team (all workspace users
+            are part of this team).
+          type: boolean
+        iconUrl:
+          description: Represents url of the team's icon.
+          type: string
+        id:
+          description: Represents unique team identifier across the system.
+          format: int64
+          type: integer
+        members:
+          description: Represents the list of user ids which are members of the team
+          items:
+            format: int64
+            type: integer
+          type: array
+        title:
+          description: Represents title of the team.
+          type: string
+      type: object
+    TeamShortResponse:
+      description: Represents team response.
+      properties:
+        allUsersTeam:
+          description: Indicates if the team is all users team (all workspace users
+            are part of this team).
+          type: boolean
+        id:
+          description: Represents unique team identifier across the system.
+          format: int64
+          type: integer
+        title:
+          description: Represents title of the team.
+          type: string
+    TimelineConfiguration:
+      allOf:
+      - "$ref": "#/components/schemas/ItemAttributeConfiguration"
+      - properties:
+          showCurrentYear:
+            description: Represents whether the year is displayed.
+            type: boolean
+          showTime:
+            description: Represents whether the time is displayed.
+            type: boolean
+        type: object
+      description: Configuration for timeline range attribute.
+    UserDetails:
+      description: Represents user details.
+      properties:
+        birthDay:
+          description: Represents status of the user
+          format: date
+          type: string
+        customFields:
+          description: Represents list of custom fields of the user
+          items:
+            "$ref": "#/components/schemas/UserDetails"
+          type: array
+        location:
+          description: Represents location of the user
+          type: string
+        mobilePhone:
+          description: Represents mobile phone number of the user
+          type: string
+        phone:
+          description: Represents phone number of the user
+          type: string
+        title:
+          description: Represents title of the user
+          type: string
+        workAnniversary:
+          description: Represents status of the user
+          format: date
+          type: string
+      type: object
+    UserResponse:
+      description: Represents short user response.
+      properties:
+        details:
+          "$ref": "#/components/schemas/UserDetails"
+          description: Represents details of the user
+        email:
+          description: Represents user's email.
+          type: string
+        id:
+          description: Represents unique user identifier across the system.
+          format: int64
+          type: integer
+        name:
+          description: Represents user's name.
+          type: string
+        photoUrl:
+          description: Represents url of the user profile photo
+          type: string
+        status:
+          description: Represents status of the user
+          enum:
+          - ACTIVE
+          - INACTIVE
+          - PENDING
+          type: string
+        type:
+          description: Represents type of the user.
+          enum:
+          - OWNER
+          - ADMIN
+          - MEMBER
+          - VIEWER
+          type: string
+      type: object
+    ValidationErrorResponse:
+      properties:
+        errorCode:
+          format: int32
+          type: integer
+        errorLabel:
+          type: string
+        violations:
+          items:
+            "$ref": "#/components/schemas/Violation"
+          type: array
+      type: object
+    Violation:
+      properties:
+        fieldName:
+          type: string
+        message:
+          type: string
+      type: object
+  securitySchemes:
+    api-key-auth:
+      in: header
+      name: X-API-Key
+      type: apiKey
+info:
+  contact:
+    email: support@plaky.com
+    name: Plaky
+  description: |
+    ## Introduction
+
+    Welcome to the Plaky API. Built on REST principles, this API allows you to integrate Plaky into your own app, by using
+    the endpoints below. If you're looking to integrate operations over board items (list/preview, create new, update an
+    existing one,
+    leave a comment and reaction, reply etc.) or get board details, you are in the right place.
+
+    A prerequisite for using the public API is to set an API key – in order to authenticate. You can follow [this](https://plaky.com/help/integrations/api/manage-api-keys-in-plaky/) page to find out how to set it up.
+
+    ## API endpoints usage
+
+    All the endpoints are prefixed with the public API URL:
+    https://api.plaky.com/v1/public.
+
+    For example, the endpoint to retrieve item details looks as follows:
+    https://api.plaky.com/v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}, where you'll replace IDs in curly braces with your actual space/board/item IDs.
+
+    ## Authentication
+
+    To ensure the security of your data, all API requests must be authenticated. We use API keys to identify the caller.
+
+    * It's mandatory to include the X-API-Key header with the value of your API key in every request.
+    * The API key is only visible to you and should NOT be shared publicly.
+    * By using this API, only operations within the scope of your workspace, user role and permissions are allowed.
+
+    For more details on how to manage API keys, you can go to [this](https://plaky.com/help/integrations/api/manage-api-keys-in-plaky/) page.
+
+    ## Rate limiter
+
+    We enforce a rate limit on all API requests in order to maintain high availability and fair usage for all users.
+    The limitation is 200 requests per user per minute. Exceeding this limit will result in error 429 -
+    TOO_MANY_REQUESTS.
+
+    ## Pagination
+
+    Our REST API supports pagination for all synchronous GET endpoints that retrieve lists of entities. When an endpoint accepts the **page** and **pageSize** query parameters, it will return a paginated response.
+
+    To control the data returned in a paginated request, you can use the following optional query parameters:
+
+    * **page** (integer): The page number you wish to retrieve. This is **1-indexed**. If this parameter is omitted, the API will default to the first page (**page=1**).
+    * **pageSize** (integer): The number of items to include on each page. If this parameter is omitted, a default page size will be used.
+
+    ### Determining if More Data Exists
+
+    Every response from an endpoint that supports these parameters will include a **hasMore** field. This boolean flag provides a simple way to determine if you have reached the end of the data set.
+
+    * **true**: Additional pages can be fetched.
+    * **false**: The current page is the final page; no more data is available.
+  termsOfService: https://plaky.com/terms
+  title: Plaky API
+  version: v1
+openapi: 3.1.0
+paths:
+  "/v1/public/spaces":
+    get:
+      operationId: getSpaces
+      parameters:
+      - description: Comma-separated list of relationships to be expanded into full
+          objects.
+        example: board
+        explode: false
+        in: query
+        name: expand
+        required: false
+        schema:
+          items:
+            enum:
+            - board
+            type: string
+          type: array
+      - description: Page number.
+        in: query
+        name: page
+        required: false
+        schema:
+          default: 1
+          format: int32
+          type: integer
+      - description: Page size.
+        in: query
+        name: pageSize
+        required: false
+        schema:
+          default: 50
+          format: int32
+          type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PublicPagedResponseV1SpaceResponse"
+          description: OK
+      summary: Get spaces
+      tags:
+      - Spaces
+      x-order: 1
+  "/v1/public/spaces/{spaceId}":
+    get:
+      operationId: getSpaceById
+      parameters:
+      - description: Represents unique space identifier across the system.
+        example: 1
+        in: path
+        name: spaceId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Comma-separated list of relationships to be expanded into full
+          objects.
+        example: board
+        explode: false
+        in: query
+        name: expand
+        required: false
+        schema:
+          items:
+            enum:
+            - board
+            type: string
+          type: array
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/SpaceResponse"
+          description: OK
+      summary: Get space by ID
+      tags:
+      - Spaces
+      x-order: 2
+  "/v1/public/spaces/{spaceId}/boards":
+    get:
+      operationId: getBoardsForSpace
+      parameters:
+      - description: Represents unique space identifier across the system.
+        example: 1
+        in: path
+        name: spaceId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Page number.
+        in: query
+        name: page
+        required: false
+        schema:
+          default: 1
+          format: int32
+          type: integer
+      - description: Page size.
+        in: query
+        name: pageSize
+        required: false
+        schema:
+          default: 50
+          format: int32
+          type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PublicPagedResponseV1BoardResponse"
+          description: OK
+      summary: Get boards for space
+      tags:
+      - Boards
+      x-order: 1
+  "/v1/public/spaces/{spaceId}/boards/{boardId}":
+    get:
+      operationId: getBoardById
+      parameters:
+      - description: Represents unique space identifier across the system.
+        example: 1
+        in: path
+        name: spaceId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique board identifier across the system.
+        example: 1
+        in: path
+        name: boardId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/BoardResponse"
+          description: OK
+      summary: Get board by ID
+      tags:
+      - Boards
+      x-order: 2
+  "/v1/public/spaces/{spaceId}/boards/{boardId}/item-groups":
+    get:
+      operationId: getItemGroupsForBoard
+      parameters:
+      - description: Represents unique space identifier across the system.
+        example: 1
+        in: path
+        name: spaceId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique board identifier across the system.
+        example: 1
+        in: path
+        name: boardId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Page number.
+        in: query
+        name: page
+        required: false
+        schema:
+          default: 1
+          format: int32
+          type: integer
+      - description: Page size.
+        in: query
+        name: pageSize
+        required: false
+        schema:
+          default: 50
+          format: int32
+          type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PublicPagedResponseV1ItemGroupResponse"
+          description: OK
+      summary: Get item groups for board
+      tags:
+      - Item Groups
+      x-order: 1
+    post:
+      operationId: createItemGroup
+      parameters:
+      - description: Represents unique space identifier across the system.
+        example: 1
+        in: path
+        name: spaceId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique board identifier across the system.
+        example: 1
+        in: path
+        name: boardId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ItemGroupCreateRequest"
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ItemGroupResponse"
+          description: Created
+      summary: Create item group
+      tags:
+      - Item Groups
+      x-order: 3
+  "/v1/public/spaces/{spaceId}/boards/{boardId}/item-groups/{itemGroupId}":
+    delete:
+      operationId: deleteItemGroup
+      parameters:
+      - description: Represents unique space identifier across the system.
+        example: 1
+        in: path
+        name: spaceId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique board identifier across the system.
+        example: 1
+        in: path
+        name: boardId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique item group identifier across the system.
+        example: 1
+        in: path
+        name: itemGroupId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      responses:
+        '200':
+          description: OK
+      summary: Delete item group
+      tags:
+      - Item Groups
+      x-order: 5
+    get:
+      operationId: getItemGroupById
+      parameters:
+      - description: Represents unique space identifier across the system.
+        example: 1
+        in: path
+        name: spaceId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique board identifier across the system.
+        example: 1
+        in: path
+        name: boardId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique item group identifier across the system.
+        example: 1
+        in: path
+        name: itemGroupId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ItemGroupResponse"
+          description: OK
+      summary: Get item group by ID
+      tags:
+      - Item Groups
+      x-order: 2
+    put:
+      operationId: updateItemGroup
+      parameters:
+      - description: Represents unique space identifier across the system.
+        example: 1
+        in: path
+        name: spaceId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique board identifier across the system.
+        example: 1
+        in: path
+        name: boardId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique item group identifier across the system.
+        example: 1
+        in: path
+        name: itemGroupId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ItemGroupUpdateRequest"
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ItemGroupResponse"
+          description: OK
+      summary: Update item group
+      tags:
+      - Item Groups
+      x-order: 4
+  "/v1/public/spaces/{spaceId}/boards/{boardId}/item-groups/{itemGroupId}/archive":
+    put:
+      operationId: archiveItemGroup
+      parameters:
+      - description: Represents unique space identifier across the system.
+        example: 1
+        in: path
+        name: spaceId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique board identifier across the system.
+        example: 1
+        in: path
+        name: boardId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique item group identifier across the system.
+        example: 1
+        in: path
+        name: itemGroupId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      responses:
+        '200':
+          description: OK
+      summary: Archive item group
+      tags:
+      - Item Groups
+      x-order: 6
+  "/v1/public/spaces/{spaceId}/boards/{boardId}/items":
+    get:
+      operationId: getItemsForBoardView
+      parameters:
+      - description: Represents unique space identifier across the system.
+        in: path
+        name: spaceId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique board identifier across the system.
+        in: path
+        name: boardId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique board view identifier across the system.
+        in: query
+        name: boardViewId
+        required: false
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique item identifier across the system.
+        in: query
+        name: parentId
+        required: false
+        schema:
+          format: int64
+          type: integer
+      - description: |
+          Indicates how subitems are treated in the response. By default subitems will be included.
+          This flag is not applicable when **parentId** is set.
+
+          **Options:**
+          * **INCLUDE**: Includes subitems in the top level response.
+          * **EXCLUDE**: Excludes subitems from the top level response.
+          * **EMBED**: Excludes from top level and embeds into each parent with sorts and filters applied.
+        in: query
+        name: subitemsBehaviour
+        required: false
+        schema:
+          default: INCLUDE
+          enum:
+          - INCLUDE
+          - EXCLUDE
+          - EMBED
+          type: string
+      - description: Page number.
+        in: query
+        name: page
+        required: false
+        schema:
+          default: 1
+          format: int32
+          type: integer
+      - description: Page size.
+        in: query
+        name: pageSize
+        required: false
+        schema:
+          default: 50
+          format: int32
+          type: integer
+      - description: |-
+          Comma-separated list of relationships to expand into full objects
+          instead of IDs.
+        example: space,board
+        explode: false
+        in: query
+        name: expand
+        required: false
+        schema:
+          items:
+            enum:
+            - space
+            - board
+            - group
+            - createdBy
+            - parent
+            - subscriptions
+            - fields
+            type: string
+          type: array
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PublicPagedResponseV1ItemResponse"
+          description: OK
+      summary: Get items with filters
+      tags:
+      - Items
+      x-order: 2
+    post:
+      operationId: createItem
+      parameters:
+      - description: Represents unique space identifier across the system.
+        example: 1
+        in: path
+        name: spaceId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique board identifier across the system.
+        example: 1
+        in: path
+        name: boardId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ItemCreateRequest"
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ItemResponse"
+          description: Created
+      summary: Create item
+      tags:
+      - Items
+      x-order: 1
+  "/v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}":
+    delete:
+      operationId: deleteItem
+      parameters:
+      - description: Represents unique space identifier across the system.
+        example: '1'
+        in: path
+        name: spaceId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique board identifier across the system.
+        example: '1'
+        in: path
+        name: boardId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique item identifier across the system.
+        example: '1'
+        in: path
+        name: itemId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      responses:
+        '200':
+          description: OK
+      summary: Delete item
+      tags:
+      - Items
+      x-order: 5
+    get:
+      operationId: getItemById
+      parameters:
+      - description: Represents unique space identifier across the system.
+        example: 1
+        in: path
+        name: spaceId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique board identifier across the system.
+        example: 1
+        in: path
+        name: boardId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique item identifier across the system.
+        example: 1
+        in: path
+        name: itemId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: |-
+          Comma-separated list of relationships to expand into full objects
+          instead of IDs.
+        example: space,board
+        explode: false
+        in: query
+        name: expand
+        required: false
+        schema:
+          items:
+            enum:
+            - space
+            - board
+            - group
+            - createdBy
+            - parent
+            - subscriptions
+            - fields
+            type: string
+          type: array
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ItemResponse"
+          description: OK
+      summary: Get item by ID
+      tags:
+      - Items
+      x-order: 4
+  "/v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/comments":
+    get:
+      operationId: getCommentsForItem
+      parameters:
+      - description: Represents unique space identifier across the system.
+        example: 1
+        in: path
+        name: spaceId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique board identifier across the system.
+        example: 1
+        in: path
+        name: boardId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique item identifier across the system.
+        example: 1
+        in: path
+        name: itemId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  "$ref": "#/components/schemas/CommentResponse"
+                type: array
+          description: OK
+      summary: Get item comments
+      tags:
+      - Item comments
+    post:
+      operationId: createItemComment
+      parameters:
+      - description: Represents unique space identifier across the system.
+        example: 1
+        in: path
+        name: spaceId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique board identifier across the system.
+        example: 1
+        in: path
+        name: boardId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique item identifier across the system.
+        example: 1
+        in: path
+        name: itemId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/CommentRequest"
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/CommentResponse"
+          description: OK
+      summary: Create item comment
+      tags:
+      - Item comments
+  "/v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/comments/{itemCommentId}":
+    delete:
+      operationId: deleteItemComment
+      parameters:
+      - description: Represents unique space identifier across the system.
+        example: 1
+        in: path
+        name: spaceId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique board identifier across the system.
+        example: 1
+        in: path
+        name: boardId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique item identifier across the system.
+        example: 1
+        in: path
+        name: itemId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique item comment identifier across the system.
+        example: 1
+        in: path
+        name: itemCommentId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      responses:
+        '200':
+          description: OK
+      summary: Delete item comment
+      tags:
+      - Item comments
+    put:
+      operationId: updateItemComment
+      parameters:
+      - description: Represents unique space identifier across the system.
+        example: 1
+        in: path
+        name: spaceId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique board identifier across the system.
+        example: 1
+        in: path
+        name: boardId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique item identifier across the system.
+        example: 1
+        in: path
+        name: itemId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique item comment identifier across the system.
+        example: 1
+        in: path
+        name: itemCommentId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/CommentRequest"
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/CommentResponse"
+          description: OK
+      summary: Update item comment
+      tags:
+      - Item comments
+  "/v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/comments/{itemCommentId}/reactions":
+    put:
+      operationId: updateUserReactions
+      parameters:
+      - description: Represents unique space identifier across the system.
+        example: 1
+        in: path
+        name: spaceId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique board identifier across the system.
+        example: 1
+        in: path
+        name: boardId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique item identifier across the system.
+        example: 1
+        in: path
+        name: itemId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique item comment identifier across the system.
+        example: 1
+        in: path
+        name: itemCommentId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ReactionPutRequest"
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ReactionPutResponse"
+          description: OK
+      summary: Update item comment reaction
+      tags:
+      - Item comment reactions
+  "/v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/fields":
+    patch:
+      operationId: changeItemAttributeValues
+      parameters:
+      - description: Represents unique space identifier across the system.
+        example: 1
+        in: path
+        name: spaceId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique board identifier across the system.
+        example: 1
+        in: path
+        name: boardId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique item identifier across the system.
+        example: '1'
+        in: path
+        name: itemId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              description: |
+                Represents item field values to be changed. Field can be specified by it's key or by it's title.
+                For example if there is field with key **status-1** and title **Task Status** then in the request it can be referenced by either of them.
+                Field value differs per type and for some types it can be specified in multiple ways.
+
+                | Type | Examples (Key / Title) |
+                | :--- | :--- |
+                | **String** | `{"string-1" : "test"}` <br> `{"String Field Title" : "test"}` |
+                | **Rich Text** | `{"rich_text-1" : "some rich text"}` <br> `{"Description" : "some rich text"}` |
+                | **Number** | `{"number-1" : 13.4}` <br> `{"Price" : 13.4}` |
+                | **Date** | `{"date_time-1" : "2017-06-02T18:10:15.254Z"}` <br> `{"Date" : "2017-06-02T18:10:15.254Z"}` |
+                | **Timeline** | `{"timeline-1" : {"start" : "2026-01-02T18:10:15.254Z", "end": "2026-02-02T18:10:15.254Z"}}` <br> `{"Timeline" : {"start" : "2026-01-02T18:10:15.254Z", "end": "2026-02-02T18:10:15.254Z"}}` |
+                | **Status** | `{"status-1" : "1"}`, `{"status-1" : "To do"}` <br> `{"Status" : "1"}`, `{"Status" : "To do"}` |
+                | **Tag** | `{"tag-1" : ["1", "2"]}`, `{"tag-1" : ["Product", "HR"]}` <br> `{"Department" : ["1", "2"]}`, `{"Department" : ["Product", "HR"]}` |
+                | **Link** | `{"link-1" : "https://www.google.com"}` <br> `{"link-1" : {"url" : "https://www.google.com", "displayText" : "Google"}}` <br> `{"Link" : "https://www.google.com"}` |
+                | **Person** | `{"person-1": {"users" : [{"id" : "1"}, {"email" : "test@gmail.com"}], "teams": [{"id" : 1}, {"title" : "Backend Team"}]}}` <br> `{"Assignee": {"users" : [{"id" : "1"}, {"email" : "test@gmail.com"}], "teams": [{"id" : 1}, {"title" : "Backend Team"}]}}` |
+              example:
+                Description: Updated description
+                Status: To do
+                number-1: 50
+              title: MultipleFieldValueChangeRequest
+              type: string
+        description: Represents item field values to be changed.
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ItemResponse"
+          description: OK
+      summary: Change multiple item field values
+      tags:
+      - Items
+      x-order: 7
+  "/v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/fields/{itemFieldKey}":
+    patch:
+      operationId: changeItemAttributeValue
+      parameters:
+      - description: Represents unique space identifier across the system.
+        example: 1
+        in: path
+        name: spaceId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique board identifier across the system.
+        example: 1
+        in: path
+        name: boardId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique item identifier across the system.
+        example: 1
+        in: path
+        name: itemId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents key of the field.
+        in: path
+        name: itemFieldKey
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/FieldValueChangeRequest"
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ItemResponse"
+          description: OK
+      summary: Change item field value
+      tags:
+      - Items
+      x-order: 6
+  "/v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/files":
+    get:
+      operationId: getItemFiles
+      parameters:
+      - description: Represents unique space identifier across the system.
+        example: 1
+        in: path
+        name: spaceId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique board identifier across the system.
+        example: 1
+        in: path
+        name: boardId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique item identifier across the system.
+        example: 1
+        in: path
+        name: itemId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  "$ref": "#/components/schemas/ItemFileResponse"
+                type: array
+          description: OK
+      summary: Get item files
+      tags:
+      - Item files
+      x-order: 2
+    post:
+      operationId: uploadFile
+      parameters:
+      - description: Represents unique space identifier across the system.
+        example: 1
+        in: path
+        name: spaceId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique board identifier across the system.
+        example: 1
+        in: path
+        name: boardId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique item identifier across the system.
+        example: 1
+        in: path
+        name: itemId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              properties:
+                file:
+                  description: File to upload
+                  format: binary
+                  type: string
+              required:
+              - file
+              type: object
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ItemFileResponse"
+          description: Created
+      summary: Upload item file
+      tags:
+      - Item files
+      x-order: 1
+  "/v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/files/{itemFileId}":
+    delete:
+      operationId: deleteItemFile
+      parameters:
+      - description: Represents unique space identifier across the system.
+        example: 1
+        in: path
+        name: spaceId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Unique identifier of the board.
+        example: 1
+        in: path
+        name: boardId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique board identifier across the system.
+        example: 1
+        in: path
+        name: itemId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique item file identifier across the system.
+        example: 1
+        in: path
+        name: itemFileId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      responses:
+        '200':
+          description: OK
+      summary: Delete item file
+      tags:
+      - Item files
+      x-order: 6
+    get:
+      operationId: getItemFileDetails
+      parameters:
+      - description: Represents unique space identifier across the system.
+        example: 1
+        in: path
+        name: spaceId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique board identifier across the system.
+        example: 1
+        in: path
+        name: boardId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique item identifier across the system.
+        example: 1
+        in: path
+        name: itemId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique item file identifier across the system.
+        example: 1
+        in: path
+        name: itemFileId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ItemFileResponse"
+          description: OK
+      summary: Get item file details
+      tags:
+      - Item files
+      x-order: 3
+    put:
+      operationId: updateItemFile
+      parameters:
+      - description: Represents unique space identifier across the system.
+        example: 1
+        in: path
+        name: spaceId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique board identifier across the system.
+        example: 1
+        in: path
+        name: boardId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique item identifier across the system.
+        example: 1
+        in: path
+        name: itemId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique item file identifier across the system.
+        example: 1
+        in: path
+        name: itemFileId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ItemFileUpdateRequest"
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ItemFileResponse"
+          description: OK
+      summary: Update item file
+      tags:
+      - Item files
+      x-order: 5
+  "/v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/files/{itemFileId}/download":
+    get:
+      operationId: downloadFile
+      parameters:
+      - description: Represents unique space identifier across the system.
+        example: 1
+        in: path
+        name: spaceId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique board identifier across the system.
+        example: 1
+        in: path
+        name: boardId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique item identifier across the system.
+        example: 1
+        in: path
+        name: itemId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique item file identifier across the system.
+        example: 1
+        in: path
+        name: itemFileId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ItemFileDownloadResponse"
+          description: OK
+      summary: Download item file
+      tags:
+      - Item files
+      x-order: 4
+  "/v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/sub-items":
+    get:
+      operationId: getSubitemsForItem
+      parameters:
+      - description: Represents unique space identifier across the system.
+        example: 1
+        in: path
+        name: spaceId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique board identifier across the system.
+        example: 1
+        in: path
+        name: boardId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Represents unique item identifier across the system.
+        example: 1
+        in: path
+        name: itemId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - description: Page number.
+        in: query
+        name: page
+        required: false
+        schema:
+          default: 1
+          format: int32
+          type: integer
+      - description: Page size.
+        in: query
+        name: pageSize
+        required: false
+        schema:
+          default: 50
+          format: int32
+          type: integer
+      - description: |-
+          Comma-separated list of relationships to expand into full objects
+          instead of IDs.
+        example: space,board
+        explode: false
+        in: query
+        name: expand
+        required: false
+        schema:
+          items:
+            enum:
+            - space
+            - board
+            - group
+            - createdBy
+            - parent
+            - subscriptions
+            - fields
+            type: string
+          type: array
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PublicPagedResponseV1ItemResponse"
+          description: OK
+      summary: Get subitems for item
+      tags:
+      - Items
+      x-order: 3
+  "/v1/public/teams":
+    get:
+      operationId: getWorkspaceTeams
+      parameters:
+      - description: Page number.
+        in: query
+        name: page
+        required: false
+        schema:
+          default: 1
+          format: int32
+          type: integer
+      - description: Page size.
+        in: query
+        name: pageSize
+        required: false
+        schema:
+          default: 50
+          format: int32
+          type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PublicPagedResponseV1TeamResponse"
+          description: OK
+      summary: Get workspace teams
+      tags:
+      - Teams
+      x-order: 1
+  "/v1/public/teams/{teamId}":
+    get:
+      operationId: getTeamById
+      parameters:
+      - description: Represents unique team identifier across the system.
+        example: 1
+        in: path
+        name: teamId
+        required: true
+        schema:
+          format: int64
+          type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/TeamResponse"
+          description: OK
+      summary: Get team by ID
+      tags:
+      - Teams
+      x-order: 2
+  "/v1/public/users":
+    get:
+      operationId: getWorkspaceUsers
+      parameters:
+      - description: If provided, you will get list of users filtered for the provided
+          emails
+        in: query
+        name: emails
+        required: false
+        schema:
+          items:
+            type: string
+          type: array
+          uniqueItems: true
+      - description: If provided, you will get list of users filtered for the provided
+          status
+        in: query
+        name: status
+        required: false
+        schema:
+          enum:
+          - ACTIVE
+          - PENDING
+          - INACTIVE
+          type: string
+      - description: If provided, you will get list of users filtered for the provided
+          type
+        in: query
+        name: type
+        required: false
+        schema:
+          enum:
+          - OWNER
+          - ADMIN
+          - MEMBER
+          - VIEWER
+          type: string
+      - description: Page number.
+        in: query
+        name: page
+        required: false
+        schema:
+          default: 1
+          format: int32
+          type: integer
+      - description: Page size.
+        in: query
+        name: pageSize
+        required: false
+        schema:
+          default: 50
+          format: int32
+          type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PublicPagedResponseV1UserResponse"
+          description: OK
+      summary: Get workspace users
+      tags:
+      - Users
+      x-order: 1
+  "/v1/public/users/me":
+    get:
+      operationId: getWorkspaceUser
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/UserResponse"
+          description: OK
+      summary: Get currently logged-in user
+      tags:
+      - Users
+      x-order: 2
+security:
+- api-key-auth: []
+servers:
+- description: Generated server url
+  url: https://api.plaky.com
+tags:
+- description: |
+    This is a set of endpoints to manage users. You can search users and
+    retrieve user's details.
+  name: Users
+- description: |
+    This is a set of endpoints to manage teams. You can search teams and
+    retrieve team's details.
+  name: Teams
+- description: |
+    This is a set of endpoints to manage space. You can search spaces and
+    retrieve space's details.
+  name: Spaces
+- description: |
+    This is a set of endpoints to manage boards. You can search boards and
+    retrieve board's details.
+  name: Boards
+- description: |
+    This is a set of endpoints to manage item groups. You can create, edit and
+    remove item groups.
+  name: Item Groups
+- description: |
+    This is a set of endpoints to manage board items. Items could form individual,
+    highly customizable tasks which could be managed. So, you can create items,
+    edit/remove also or you can change your custom item field values.
+  name: Items
+- description: |
+    Set of endpoints for comment management. You can create specific comment
+    or reply to the existing one, change/remove as well.
+  name: Item comments
+- description: |
+    This is a set of endpoints to manage item comment reaction(s). As a user,
+    you can set multiple reactions on some comment, override/remove them at
+    the same time.
+  name: Item comment reactions
+- description: |
+    This is a set of endpoints to manage item files. You can upload files,
+    list them and get download links.
+  name: Item files
