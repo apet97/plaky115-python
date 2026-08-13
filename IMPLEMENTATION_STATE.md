@@ -8,6 +8,8 @@
 - Last green offline verification: (none yet)
 - Current failures: (none)
 - Coverage: 95.13% branch coverage, fail_under=95 enforced (ADR-0005 superseded); resolvers return typed models
-- Next exact action: transport progress/cancellation depth tests; tag+PyPI trusted publishing under separate authorization
+- Transport depth: progress + cancellation verified on in-memory, streamable HTTP, and stdio (tests/mcp/test_progress_cancellation.py)
+- Release automation: .github/workflows/release.yml (trusted publishing on v* tags)
+- Next exact action: user registers the PyPI trusted publisher and authorizes the version tag; then push tag
 - Uncommitted files: all (initial)
 - External blockers: live write authorization; remote/tag/publication authorization (see BLOCKERS.md)

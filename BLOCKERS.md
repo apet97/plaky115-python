@@ -24,12 +24,14 @@ groups (the archived probe group deleted cleanly). The run surfaced and
 fixed a real defect: MCP structured content carried non-JSON-serializable
 datetimes (fixed via model_dump(mode="json") across MCP surfaces).
 
-## BLOCKED_EXTERNAL — remote repository, tags, and publication
-Date: 2026-08-13
-Reason: remote creation/push/PR, tag creation, and TestPyPI/PyPI
-publication each require separate current-task authorization naming the
-owner/repository/branch, version/commit, or registry/version/digest. None
-was granted. Local commits are complete and reproducible.
-Next action after unblocking: push to the named remote, tag the named
-version, and publish via trusted publishing using the verified artifact
-digest recorded in the verify receipt.
+## BLOCKED_EXTERNAL — tags and publication (remote RESOLVED)
+Date: 2026-08-13 (updated same day)
+Remote: RESOLVED — pushed to https://github.com/apet97/plaky115-python (main).
+Remaining: tag creation and PyPI publication still require separate
+authorization naming registry/version/digest. Release automation is in
+place (.github/workflows/release.yml: tag-triggered uv build + twine
+check + PyPI trusted publishing under the `pypi` environment). The
+operator is not logged into pypi.org in the managed browser, so the
+pending-trusted-publisher registration (project plaky115, owner apet97,
+repo plaky115-python, workflow release.yml, environment pypi) and the
+version tag push are user actions.
