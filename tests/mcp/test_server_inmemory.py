@@ -266,6 +266,16 @@ async def test_mutation_dispatcher_dry_run_default_and_execution() -> None:
         assert bad.structured_content["error"]["category"] == "usage"
 
 
+def test_structured_content_is_redacted() -> None:
+    """API-key-shaped tokens in workspace data never reach structured output."""
+    result = make_result(
+        text="key plk_abc123 here",
+        structured={"data": [{"title": "my key is plk_abc123"}]},
+    )
+    dumped = json.dumps(result.model_dump(by_alias=True, exclude_none=True))
+    assert "plk_abc123" not in dumped
+
+
 async def test_result_cap_returns_structured_usage_error() -> None:
     big = make_result(text="x", structured={"data": ["y" * (MAX_RESULT_BYTES + 100)]})
     assert big.is_error is True

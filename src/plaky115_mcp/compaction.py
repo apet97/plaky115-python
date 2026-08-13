@@ -13,7 +13,7 @@ from typing import Any, cast
 
 from mcp.types import CallToolResult, TextContent
 
-from plaky115.runtime.redaction import redact
+from plaky115.runtime.redaction import redact, redact_value
 from plaky115_mcp.errors import envelope_wire, usage_error
 
 MAX_RESULT_BYTES = 128 * 1024  # 131_072
@@ -41,7 +41,7 @@ def make_result(
         safe_text = safe_text[: MAX_TEXT_CHARS - 1] + "…"
     result = CallToolResult(
         content=[TextContent(type="text", text=safe_text)],
-        structured_content=structured,
+        structured_content=cast("dict[str, Any] | None", redact_value(structured)),
         is_error=is_error,
     )
     if result_bytes(result) <= MAX_RESULT_BYTES:
