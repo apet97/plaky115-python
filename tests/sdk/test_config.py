@@ -25,6 +25,8 @@ def test_default_server_url() -> None:
         ("http://localhost:8080", "http://localhost:8080"),
         ("http://127.0.0.1:9999/x", "http://127.0.0.1:9999/x"),
         ("http://[::1]:3000", "http://[::1]:3000"),
+        ("http://[::1]", "http://[::1]"),
+        ("http://[::1]/", "http://[::1]"),
     ],
 )
 def test_accepts_and_normalizes(value: str, expected: str) -> None:
@@ -35,6 +37,8 @@ def test_accepts_and_normalizes(value: str, expected: str) -> None:
     "value",
     [
         "http://example.com",  # non-loopback HTTP
+        "http://[2001:db8::1]/",  # non-loopback IPv6 HTTP
+        "http://[2001:db8::1]:8080",
         "ftp://example.com",
         "https://",
         " https://api.plaky.com",

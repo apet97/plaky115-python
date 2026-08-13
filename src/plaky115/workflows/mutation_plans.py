@@ -99,8 +99,10 @@ def _optional_string(body: dict[str, Any], key: str) -> str | None:
     return value
 
 
-def _require_color(body: dict[str, Any]) -> str:
+def _optional_color(body: dict[str, Any]) -> str | None:
     value = body.get("color")
+    if value is None:
+        return None
     if not isinstance(value, str) or not _COLOR.fullmatch(value):
         raise TypeError("body.color must be a six-digit RGB hexadecimal color")
     return value
@@ -190,7 +192,7 @@ def normalize_item_group_create_plan(
 ) -> NormalizedMutationPlan:
     payload = _plain_body(body, "body")
     _require_string(payload, "title")
-    _require_color(payload)
+    _optional_color(payload)
     _optional_string(payload, "ranking")
     return _plan(
         "createItemGroup",
@@ -208,7 +210,7 @@ def normalize_item_group_update_plan(
     payload = _plain_body(body, "body")
     _require_string(payload, "title")
     _require_string(payload, "ranking")
-    _require_color(payload)
+    _optional_color(payload)
     return _plan(
         "updateItemGroup",
         {

@@ -24,11 +24,10 @@ _LOOPBACK_IPV4 = re.compile(r"^127(?:\.\d{1,3}){3}$")
 
 
 def _is_loopback_host(host: str) -> bool:
-    stripped = host.strip("[]")
-    if stripped in ("localhost", "::1"):
+    if host in ("localhost", "::1"):
         return True
-    if _LOOPBACK_IPV4.fullmatch(stripped):
-        return all(0 <= int(octet) <= 255 for octet in stripped.split("."))
+    if _LOOPBACK_IPV4.fullmatch(host):
+        return all(0 <= int(octet) <= 255 for octet in host.split("."))
     return False
 
 
@@ -43,11 +42,10 @@ def normalize_server_url(server_url: str) -> str:
     if not re.match(r"^https?://[^/]", server_url, re.IGNORECASE):
         raise ValueError(_SERVER_URL_ERROR)
     parts = urlsplit(server_url)
-    if not parts.hostname:
+    hostname = parts.hostname
+    if not hostname:
         raise ValueError(_SERVER_URL_ERROR)
-    if parts.scheme.lower() == "http" and not _is_loopback_host(
-        parts.netloc.split("@")[-1].rsplit(":", 1)[0] if ":" in parts.netloc else parts.netloc
-    ):
+    if parts.scheme.lower() == "http" and not _is_loopback_host(hostname):
         raise ValueError(_SERVER_URL_ERROR)
     if parts.username is not None or parts.password is not None:
         raise ValueError("PlakyClient: server_url must not include credentials")

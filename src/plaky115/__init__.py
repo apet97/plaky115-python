@@ -5,7 +5,11 @@ by, or sponsored by Plaky or CAKE.com. "Plaky" and "CAKE.com" are trademarks
 of their respective owners.
 """
 
-from plaky115._version import __version__
+try:
+    from plaky115._version import __version__
+except ModuleNotFoundError:  # source tree without the build-generated file
+    __version__ = "0.0.0.dev0"  # matches [tool.hatch.version] fallback-version
+
 from plaky115.async_client import AsyncPlakyClient
 from plaky115.client import PlakyClient
 from plaky115.config import DEFAULT_SERVER_URL

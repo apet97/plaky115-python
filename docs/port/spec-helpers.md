@@ -96,8 +96,9 @@ and their tests. Parity contract for the Python port.
   both be provided`.
 - normalizeItemCreatePlan: requiresLiveResolution = groupTitle present.
   groupId/parentId canonicalized in place. Empty body valid.
-- normalizeItemGroupCreatePlan: title req, color req, ranking opt.
-  UpdatePlan: title req, ranking req, color req.
+- normalizeItemGroupCreatePlan: title req, color opt, ranking opt.
+  UpdatePlan: title req, ranking req, color opt. Color, when present,
+  must match #RRGGBB.
 - normalizeCommentPlan: text req; operationId param default
   createItemComment. normalizeItemFileUpdatePlan: body.name via full
   filename validation.
@@ -189,7 +190,9 @@ and their tests. Parity contract for the Python port.
 - export_items: format jsonl|csv; csv_safety def "spreadsheet";
   items.listAll(limit=maxItems+1) + materialization checks. JSONL: lines
   joined "\n" NO trailing newline; byte budget includes separators. CSV:
-  whole-output byte check. Empty → "".
+  whole-output byte check. Empty → "". Items serialize with
+  model_dump(mode="json"): datetimes render as ISO-8601 strings and
+  preserved int64 decimal strings stay strings.
 - read_item_chunk / iterate_item_chunks: readPagedChunk over items.list.
 - read_item_export_chunk: JSONL serialize = JSON + "\n" (every line
   newline-terminated, unlike export_items). CSV: schema frozen from
@@ -197,7 +200,9 @@ and their tests. Parity contract for the Python port.
   maxBytes def 1_048_576 (chunk default); header bytes reserved
   (header > maxBytes → bytes materialization error); body "" when
   returned==0 and complete and includeHeader. iterate_item_export_chunks:
-  header exactly once in chunk 0.
+  header exactly once in chunk 0, and one schema for the whole iteration
+  (built before the first chunk), so rows in every chunk align with that
+  single header and the board definition is not refetched per chunk.
 
 ## CSV (workflows/internal/csv.ts)
 

@@ -94,7 +94,9 @@ and `client/client.ts`. This is the parity contract for the Python port.
 - Unsafe JSON int64 preservation: integer literals with |v| >
   9007199254740991 decode to exact decimal STRINGS; safe integers stay ints;
   floats/exponents stay numbers; strings untouched. Python:
-  json.loads(text, parse_int=hook).
+  json.loads(text, parse_int=hook). Generated models type int64 fields as
+  `int | str`, so preserved decimal strings validate and re-serialize as
+  strings.
 - request id: x-request-id → request-id → x-correlation-id.
 - Paged root checks in order: plain object "/", data present "/data",
   data array "/data", hasMore present "/hasMore", hasMore bool "/hasMore",
@@ -144,8 +146,9 @@ and `client/client.ts`. This is the parity contract for the Python port.
 
 ## RateLimitTracker
 
-- Window 60 s, max 200. Headers: x-ratelimit-limit / -remaining / -reset
-  (reset heuristic: >1e9 → epoch ms in source; we track seconds).
+- Window 60 s, max 200. Headers: x-ratelimit-limit / -remaining / -reset.
+  reset_at stores the header value exactly as sent (header-native units;
+  no unit normalization).
 - last replaced wholesale per observe; observe also records a timestamp.
 - estimated_remaining: server remaining wins unclamped; else
   max(0, max - len(window)). would_throttle: remaining <= 0.

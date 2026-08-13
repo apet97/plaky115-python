@@ -475,3 +475,84 @@ async def test_workspace_map_uses_embedded_boards() -> None:
         tree = await async_workspace_map(client)
     assert tree == [{"id": 1, "title": "S", "boards": [{"id": 7, "title": "B"}]}]
     assert calls == ["/v1/public/spaces"]  # no per-space board fetch
+
+
+# --- PR #2 review regressions ----------------------------------------------
+
+
+def test_export_jsonl_serializes_datetime_as_iso8601() -> None:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        path = request.url.path
+        if path == "/v1/public/spaces/1":
+            return httpx2.Response(200, json={"id": 1, "title": "S"})
+        if path == "/v1/public/spaces/1/boards/7":
+            return httpx2.Response(200, json={"id": 7, "title": "B"})
+        if path == "/v1/public/spaces/1/boards/7/items":
+            return httpx2.Response(
+                200,
+                json={
+                    "data": [{"id": 1, "title": "A", "createdAt": "2024-01-01T12:30:00Z"}],
+                    "hasMore": False,
+                },
+            )
+        return httpx2.Response(404, json={"message": "nope"})
+
+    with PlakyClient(
+        api_key="plk_x", max_retries=0, transport=httpx2.MockTransport(handler)
+    ) as client:
+        out = export_items(client, space=1, board=7, format="jsonl")
+    assert json.loads(out)["createdAt"] == "2024-01-01T12:30:00Z"
+
+
+def _paged_csv_handler(board_calls: list[str]) -> Any:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        path = request.url.path
+        if path == "/v1/public/spaces/1":
+            return httpx2.Response(200, json={"id": 1, "title": "S"})
+        if path == "/v1/public/spaces/1/boards/7":
+            board_calls.append(path)
+            return httpx2.Response(
+                200, json={"id": 7, "title": "B", "fields": [{"key": "s", "name": "Status"}]}
+            )
+        if path == "/v1/public/spaces/1/boards/7/items":
+            page = int(request.url.params.get("page", "1"))
+            if page == 1:
+                data = [{"id": 1, "title": "A", "fields": [{"key": "s", "value": "To do"}]}]
+            elif page == 2:
+                data = [{"id": 2, "title": "B", "parent": 5}]
+            else:
+                data = []
+            return httpx2.Response(200, json={"data": data, "hasMore": page < 2})
+        return httpx2.Response(404, json={"message": "nope"})
+
+    return handler
+
+
+def test_iterate_csv_chunks_share_one_schema() -> None:
+    from plaky115 import iterate_item_export_chunks
+
+    board_calls: list[str] = []
+    with PlakyClient(
+        api_key="plk_x",
+        max_retries=0,
+        transport=httpx2.MockTransport(_paged_csv_handler(board_calls)),
+    ) as client:
+        chunks = list(
+            iterate_item_export_chunks(
+                client, space=1, board=7, format="csv", page_size=1, max_items=1
+            )
+        )
+    body = "".join(chunk.body for chunk in chunks)
+    rows = body.splitlines()
+    header = rows[0].split(",")
+    # Every data row must align with the single header emitted by chunk 1.
+    for row in rows[1:]:
+        assert len(row.split(",")) == len(header)
+    # Columns absent from the chunk-1 schema must not appear in later chunks.
+    assert "parent" not in header
+    assert not any("5" in row.split(",") for row in rows[1:])
+    # The schema is built once for the whole iteration: one board GET from
+    # the reference resolver plus one for the field definitions, regardless
+    # of the number of chunks.
+    assert len(chunks) == 2
+    assert len(board_calls) == 2

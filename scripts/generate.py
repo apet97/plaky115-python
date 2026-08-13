@@ -20,7 +20,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 REPO = Path(__file__).resolve().parent.parent
 SPEC = REPO / "contract/generated/plaky.openapi.json"
@@ -38,8 +38,37 @@ HEADER = """\
 MODEL_TARGET = REPO / "src/plaky115/models/generated.py"
 
 
+def _widen_int64(node: Any) -> None:
+    """Give every int64 integer schema a decimal-string alternative, in place.
+
+    The transport decodes JSON integers beyond ±(2**53-1) as exact decimal
+    strings (runtime/responses.py). Generated models must accept those
+    strings and keep them as strings, so re-serialization never emits a
+    number that loses digits in JavaScript consumers.
+    """
+    if isinstance(node, dict):
+        mapping = cast("dict[str, Any]", node)
+        if mapping.get("type") == "integer" and mapping.get("format") == "int64":
+            del mapping["type"]
+            del mapping["format"]
+            mapping["anyOf"] = [
+                {"type": "integer", "format": "int64"},
+                {"type": "string"},
+            ]
+            return
+        for value in mapping.values():
+            _widen_int64(value)
+    elif isinstance(node, list):
+        for value in cast("list[Any]", node):
+            _widen_int64(value)
+
+
 def generate_models() -> str:
+    spec = json.loads(SPEC.read_text(encoding="utf-8"))
+    _widen_int64(spec)
     with tempfile.TemporaryDirectory() as tmp:
+        widened_spec = Path(tmp) / "plaky.openapi.json"
+        widened_spec.write_text(json.dumps(spec, indent=2), encoding="utf-8")
         output = Path(tmp) / "generated.py"
         subprocess.run(
             [
@@ -47,7 +76,7 @@ def generate_models() -> str:
                 "-m",
                 "datamodel_code_generator",
                 "--input",
-                str(SPEC),
+                str(widened_spec),
                 "--input-file-type",
                 "openapi",
                 "--output",

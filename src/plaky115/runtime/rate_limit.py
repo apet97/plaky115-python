@@ -14,6 +14,12 @@ from dataclasses import dataclass, field
 
 @dataclass(frozen=True)
 class RateLimitSnapshot:
+    """Last-seen server rate-limit headers.
+
+    ``reset_at`` is the ``X-RateLimit-Reset`` value exactly as the server
+    sent it; no unit normalization is applied.
+    """
+
     limit: float | None = None
     remaining: float | None = None
     reset_at: float | None = None
@@ -45,18 +51,10 @@ class RateLimitTracker:
     def observe(self, headers: Mapping[str, str], now: float | None = None) -> None:
         """Record one response's rate-limit headers and count the request."""
         lookup = {k.lower(): v for k, v in headers.items()}
-        reset = _parse_num(lookup.get("x-ratelimit-reset"))
-        if reset is not None and reset > 1_000_000_000:
-            # Heuristic: values that look like epoch milliseconds stay as-is;
-            # the source multiplies seconds-scale values by 1000. Track in
-            # seconds here.
-            reset_at = reset
-        else:
-            reset_at = reset
         self.last = RateLimitSnapshot(
             limit=_parse_num(lookup.get("x-ratelimit-limit")),
             remaining=_parse_num(lookup.get("x-ratelimit-remaining")),
-            reset_at=reset_at,
+            reset_at=_parse_num(lookup.get("x-ratelimit-reset")),
         )
         self.record(now)
 

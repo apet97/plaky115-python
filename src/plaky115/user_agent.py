@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import platform
 
-from plaky115._version import __version__
+from plaky115 import __version__
 
 
 def build_user_agent(suffix: str | None = None) -> str:
