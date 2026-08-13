@@ -15,6 +15,9 @@ file listing proves no file exists. Any other skip fails the gate.
 
 from __future__ import annotations
 
+# pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
+# pyright: reportUnknownArgumentType=false
+
 import asyncio
 import json
 import os
@@ -70,8 +73,7 @@ def _need_key() -> str:
     print(f"PLAKY115_API_KEY: {'set' if key.strip() else 'unset'}", file=sys.stderr)
     if not key.strip():
         print(
-            "BLOCKED_EXTERNAL: live read certification needs an injected "
-            "rotated PLAKY115_API_KEY",
+            "BLOCKED_EXTERNAL: live read certification needs an injected rotated PLAKY115_API_KEY",
             file=sys.stderr,
         )
         raise SystemExit(3)
@@ -85,9 +87,7 @@ async def _run_async_sdk(key: str, base_url: str, scope: Scope) -> list[Receipt]
     async with AsyncPlakyClient(api_key=key, server_url=base_url) as client:
         spaces = await client.spaces.list(page_size=10)
         scope.space_id = str(spaces.data[0].id) if spaces.data else None
-        receipts.append(
-            Receipt("async-sdk", "listSpaces", "PASS", "page", len(spaces.data))
-        )
+        receipts.append(Receipt("async-sdk", "listSpaces", "PASS", "page", len(spaces.data)))
         if scope.space_id is None:
             receipts.append(Receipt("async-sdk", "getSpace", "FAIL"))
             return receipts
@@ -111,9 +111,7 @@ async def _run_async_sdk(key: str, base_url: str, scope: Scope) -> list[Receipt]
         subitems = await client.items.list_subitems(
             space_id=scope.space_id, board_id=scope.board_id, item_id=scope.item_id
         )
-        receipts.append(
-            Receipt("async-sdk", "listSubitems", "PASS", "page", len(subitems.data))
-        )
+        receipts.append(Receipt("async-sdk", "listSubitems", "PASS", "page", len(subitems.data)))
         await client.items.get(
             space_id=scope.space_id, board_id=scope.board_id, item_id=scope.item_id
         )
@@ -142,9 +140,7 @@ async def _run_async_sdk(key: str, base_url: str, scope: Scope) -> list[Receipt]
             space_id=scope.space_id, board_id=scope.board_id, page_size=10
         )
         scope.group_id = str(groups.data[0].id) if groups.data else None
-        receipts.append(
-            Receipt("async-sdk", "listItemGroups", "PASS", "page", len(groups.data))
-        )
+        receipts.append(Receipt("async-sdk", "listItemGroups", "PASS", "page", len(groups.data)))
         if scope.group_id is not None:
             await client.item_groups.get(
                 space_id=scope.space_id,
@@ -200,9 +196,7 @@ async def _run_async_sdk(key: str, base_url: str, scope: Scope) -> list[Receipt]
             space_id=scope.space_id, board_id=scope.board_id, item_id=scope.item_id
         )
         receipts.append(
-            Receipt(
-                "async-sdk", "workflow:comments.thread", "PASS", "array", len(thread.data)
-            )
+            Receipt("async-sdk", "workflow:comments.thread", "PASS", "array", len(thread.data))
         )
         chunk = await async_read_item_export_chunk(
             client, space=scope.space_id, board=scope.board_id, format="jsonl", max_items=10
@@ -217,52 +211,52 @@ def _run_sync_sdk(key: str, base_url: str, scope: Scope) -> list[Receipt]:
     from plaky115 import PlakyClient
 
     receipts: list[Receipt] = []
-    assert scope.space_id and scope.board_id and scope.item_id
+    space_id, board_id, item_id = scope.space_id, scope.board_id, scope.item_id
+    assert space_id is not None and board_id is not None and item_id is not None
+    team_id, group_id, file_id = scope.team_id, scope.group_id, scope.file_id
     with PlakyClient(api_key=key, server_url=base_url) as client:
         calls: list[tuple[str, Any, str]] = [
             ("listSpaces", lambda: client.spaces.list(page_size=10), "page"),
-            ("getSpace", lambda: client.spaces.get(scope.space_id), "object"),
+            ("getSpace", lambda: client.spaces.get(space_id), "object"),
             (
                 "listBoards",
-                lambda: client.boards.list(space_id=scope.space_id, page_size=10),
+                lambda: client.boards.list(space_id=space_id, page_size=10),
                 "page",
             ),
             (
                 "getBoard",
-                lambda: client.boards.get(space_id=scope.space_id, board_id=scope.board_id),
+                lambda: client.boards.get(space_id=space_id, board_id=board_id),
                 "object",
             ),
             (
                 "listItems",
-                lambda: client.items.list(
-                    space_id=scope.space_id, board_id=scope.board_id, page_size=10
-                ),
+                lambda: client.items.list(space_id=space_id, board_id=board_id, page_size=10),
                 "page",
             ),
             (
                 "listSubitems",
                 lambda: client.items.list_subitems(
-                    space_id=scope.space_id,
-                    board_id=scope.board_id,
-                    item_id=scope.item_id,
+                    space_id=space_id,
+                    board_id=board_id,
+                    item_id=item_id,
                 ),
                 "page",
             ),
             (
                 "getItem",
                 lambda: client.items.get(
-                    space_id=scope.space_id,
-                    board_id=scope.board_id,
-                    item_id=scope.item_id,
+                    space_id=space_id,
+                    board_id=board_id,
+                    item_id=item_id,
                 ),
                 "object",
             ),
             (
                 "listItemComments",
                 lambda: client.comments.list(
-                    space_id=scope.space_id,
-                    board_id=scope.board_id,
-                    item_id=scope.item_id,
+                    space_id=space_id,
+                    board_id=board_id,
+                    item_id=item_id,
                 ),
                 "array",
             ),
@@ -271,13 +265,13 @@ def _run_sync_sdk(key: str, base_url: str, scope: Scope) -> list[Receipt]:
             ("listTeams", lambda: client.teams.list(page_size=10), "page"),
             (
                 "getTeam",
-                (lambda: client.teams.get(scope.team_id)) if scope.team_id else None,
+                (lambda: client.teams.get(team_id)) if team_id else None,
                 "object",
             ),
             (
                 "listItemGroups",
                 lambda: client.item_groups.list(
-                    space_id=scope.space_id, board_id=scope.board_id, page_size=10
+                    space_id=space_id, board_id=board_id, page_size=10
                 ),
                 "page",
             ),
@@ -285,21 +279,21 @@ def _run_sync_sdk(key: str, base_url: str, scope: Scope) -> list[Receipt]:
                 "getItemGroup",
                 (
                     lambda: client.item_groups.get(
-                        space_id=scope.space_id,
-                        board_id=scope.board_id,
-                        item_group_id=scope.group_id,
+                        space_id=space_id,
+                        board_id=board_id,
+                        item_group_id=group_id,
                     )
                 )
-                if scope.group_id
+                if group_id
                 else None,
                 "object",
             ),
             (
                 "listItemFiles",
                 lambda: client.item_files.list(
-                    space_id=scope.space_id,
-                    board_id=scope.board_id,
-                    item_id=scope.item_id,
+                    space_id=space_id,
+                    board_id=board_id,
+                    item_id=item_id,
                 ),
                 "array",
             ),
@@ -307,13 +301,13 @@ def _run_sync_sdk(key: str, base_url: str, scope: Scope) -> list[Receipt]:
                 "getItemFile",
                 (
                     lambda: client.item_files.get(
-                        space_id=scope.space_id,
-                        board_id=scope.board_id,
-                        item_id=scope.item_id,
-                        item_file_id=scope.file_id,
+                        space_id=space_id,
+                        board_id=board_id,
+                        item_id=item_id,
+                        item_file_id=file_id,
                     )
                 )
-                if scope.file_id
+                if file_id
                 else None,
                 "object",
             ),
@@ -321,13 +315,13 @@ def _run_sync_sdk(key: str, base_url: str, scope: Scope) -> list[Receipt]:
                 "getItemFileDownload",
                 (
                     lambda: client.item_files.get_download(
-                        space_id=scope.space_id,
-                        board_id=scope.board_id,
-                        item_id=scope.item_id,
-                        item_file_id=scope.file_id,
+                        space_id=space_id,
+                        board_id=board_id,
+                        item_id=item_id,
+                        item_file_id=file_id,
                     )
                 )
-                if scope.file_id
+                if file_id
                 else None,
                 "object",
             ),
@@ -358,75 +352,75 @@ async def _run_raw_mcp(key: str, base_url: str, scope: Scope) -> list[Receipt]:
     from plaky115_mcp.config import ServerSettings
     from plaky115_mcp.server import build_server
 
-    assert scope.space_id and scope.board_id and scope.item_id
+    space_id, board_id, item_id = scope.space_id, scope.board_id, scope.item_id
+    assert space_id is not None and board_id is not None and item_id is not None
+    team_id, group_id, file_id = scope.team_id, scope.group_id, scope.file_id
     settings = ServerSettings(api_key=key, server_url=base_url, mode="generated")
     sdk = AsyncPlakyClient(api_key=key, server_url=base_url)
     server = build_server(settings, sdk)
     receipts: list[Receipt] = []
     args_by_operation: dict[str, dict[str, Any]] = {
         "listSpaces": {},
-        "getSpace": {"spaceId": scope.space_id},
-        "listBoards": {"spaceId": scope.space_id},
-        "getBoard": {"spaceId": scope.space_id, "boardId": scope.board_id},
-        "listItems": {"spaceId": scope.space_id, "boardId": scope.board_id},
+        "getSpace": {"spaceId": space_id},
+        "listBoards": {"spaceId": space_id},
+        "getBoard": {"spaceId": space_id, "boardId": board_id},
+        "listItems": {"spaceId": space_id, "boardId": board_id},
         "listSubitems": {
-            "spaceId": scope.space_id,
-            "boardId": scope.board_id,
-            "itemId": scope.item_id,
+            "spaceId": space_id,
+            "boardId": board_id,
+            "itemId": item_id,
         },
         "getItem": {
-            "spaceId": scope.space_id,
-            "boardId": scope.board_id,
-            "itemId": scope.item_id,
+            "spaceId": space_id,
+            "boardId": board_id,
+            "itemId": item_id,
         },
         "listItemComments": {
-            "spaceId": scope.space_id,
-            "boardId": scope.board_id,
-            "itemId": scope.item_id,
+            "spaceId": space_id,
+            "boardId": board_id,
+            "itemId": item_id,
         },
         "listUsers": {},
         "getCurrentUser": {},
         "listTeams": {},
-        "getTeam": {"teamId": scope.team_id} if scope.team_id else {},
-        "listItemGroups": {"spaceId": scope.space_id, "boardId": scope.board_id},
+        "getTeam": {"teamId": team_id} if team_id else {},
+        "listItemGroups": {"spaceId": space_id, "boardId": board_id},
         "getItemGroup": {
-            "spaceId": scope.space_id,
-            "boardId": scope.board_id,
-            "itemGroupId": scope.group_id,
+            "spaceId": space_id,
+            "boardId": board_id,
+            "itemGroupId": group_id,
         }
-        if scope.group_id
+        if group_id
         else {},
         "listItemFiles": {
-            "spaceId": scope.space_id,
-            "boardId": scope.board_id,
-            "itemId": scope.item_id,
+            "spaceId": space_id,
+            "boardId": board_id,
+            "itemId": item_id,
         },
         "getItemFile": {
-            "spaceId": scope.space_id,
-            "boardId": scope.board_id,
-            "itemId": scope.item_id,
-            "itemFileId": scope.file_id,
+            "spaceId": space_id,
+            "boardId": board_id,
+            "itemId": item_id,
+            "itemFileId": file_id,
         }
-        if scope.file_id
+        if file_id
         else {},
         "getItemFileDownload": {
-            "spaceId": scope.space_id,
-            "boardId": scope.board_id,
-            "itemId": scope.item_id,
-            "itemFileId": scope.file_id,
+            "spaceId": space_id,
+            "boardId": board_id,
+            "itemId": item_id,
+            "itemFileId": file_id,
         }
-        if scope.file_id
+        if file_id
         else {},
     }
     tool_names = {
-        op: "plaky_" + "".join(
-            "_" + c.lower() if c.isupper() else c for c in op
-        ).lstrip("_")
+        op: "plaky_" + "".join("_" + c.lower() if c.isupper() else c for c in op).lstrip("_")
         for op in READ_OPERATIONS
     }
     async with Client(server) as client:
         for operation in READ_OPERATIONS:
-            if operation in ("getItemFile", "getItemFileDownload") and not scope.file_id:
+            if operation in ("getItemFile", "getItemFileDownload") and not file_id:
                 receipts.append(Receipt("raw-mcp", operation, "SKIP_PREREQUISITE"))
                 continue
             if operation in ("getTeam", "getItemGroup") and not args_by_operation[operation]:
@@ -445,9 +439,11 @@ def _run_direct_http(key: str, base_url: str, scope: Scope) -> list[Receipt]:
     """Independent reference probe: plain httpx2, no SDK machinery."""
     import httpx2
 
-    assert scope.space_id and scope.board_id and scope.item_id
+    space_id, board_id, item_id = scope.space_id, scope.board_id, scope.item_id
+    assert space_id is not None and board_id is not None and item_id is not None
+    team_id, group_id, file_id = scope.team_id, scope.group_id, scope.file_id
     receipts: list[Receipt] = []
-    s, b, i = scope.space_id, scope.board_id, scope.item_id
+    s, b, i = space_id, board_id, item_id
     paths: dict[str, str | None] = {
         "listSpaces": "/v1/public/spaces",
         "getSpace": f"/v1/public/spaces/{s}",
@@ -460,22 +456,18 @@ def _run_direct_http(key: str, base_url: str, scope: Scope) -> list[Receipt]:
         "listUsers": "/v1/public/users",
         "getCurrentUser": "/v1/public/users/me",
         "listTeams": "/v1/public/teams",
-        "getTeam": f"/v1/public/teams/{scope.team_id}" if scope.team_id else None,
+        "getTeam": f"/v1/public/teams/{team_id}" if team_id else None,
         "listItemGroups": f"/v1/public/spaces/{s}/boards/{b}/item-groups",
         "getItemGroup": (
-            f"/v1/public/spaces/{s}/boards/{b}/item-groups/{scope.group_id}"
-            if scope.group_id
-            else None
+            f"/v1/public/spaces/{s}/boards/{b}/item-groups/{group_id}" if group_id else None
         ),
         "listItemFiles": f"/v1/public/spaces/{s}/boards/{b}/items/{i}/files",
         "getItemFile": (
-            f"/v1/public/spaces/{s}/boards/{b}/items/{i}/files/{scope.file_id}"
-            if scope.file_id
-            else None
+            f"/v1/public/spaces/{s}/boards/{b}/items/{i}/files/{file_id}" if file_id else None
         ),
         "getItemFileDownload": (
-            f"/v1/public/spaces/{s}/boards/{b}/items/{i}/files/{scope.file_id}/download"
-            if scope.file_id
+            f"/v1/public/spaces/{s}/boards/{b}/items/{i}/files/{file_id}/download"
+            if file_id
             else None
         ),
     }
