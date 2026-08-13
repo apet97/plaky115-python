@@ -152,8 +152,14 @@ def main() -> int:
         consumer_dir.mkdir()
         (consumer_dir / "consumer.py").write_text(CONSUMER, encoding="utf-8")
         (consumer_dir / "pyrightconfig.json").write_text(
-            '{"typeCheckingMode": "strict", "reportMissingTypeStubs": false,\n'
-            f' "venvPath": "{base}", "venv": "venv-mcp"}}\n',
+            json.dumps(
+                {
+                    "typeCheckingMode": "strict",
+                    "reportMissingTypeStubs": False,
+                    "venvPath": str(base),
+                    "venv": "venv-mcp",
+                }
+            ),
             encoding="utf-8",
         )
         run(
