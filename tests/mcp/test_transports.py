@@ -199,3 +199,44 @@ def test_cli_destructive_requires_write() -> None:
     result = _run_cli("--scope", "destructive", env={"PLAKY115_API_KEY": "plk_x"})
     assert result.returncode == 2
     assert "destructive scope requires the write scope" in result.stderr
+
+
+def test_cli_invalid_log_level_fails_cleanly() -> None:
+    result = _run_cli("--log-level", "bogus", env={"PLAKY115_API_KEY": "plk_x"})
+    assert result.returncode == 2
+    assert "Traceback" not in result.stderr
+
+
+def test_cli_non_loopback_requires_allowed_host() -> None:
+    result = _run_cli(
+        "--transport",
+        "streamable-http",
+        "--host",
+        "0.0.0.0",
+        "--allowed-origin",
+        "https://claude.ai",
+        env={"PLAKY115_API_KEY": "plk_x"},
+    )
+    assert result.returncode == 2
+    assert "--allowed-host" in result.stderr
+
+
+def test_http_allowlists_never_derive_from_bind_address() -> None:
+    from plaky115_mcp.cli import http_allowlists
+
+    # Loopback: defaults plus any explicit extras (tunnel forwarding case).
+    hosts, origins = http_allowlists("127.0.0.1", ["example.com"], None)
+    assert "example.com" in hosts and "127.0.0.1:*" in hosts
+    assert origins == []
+    # Non-loopback: exactly the explicit allowlists; the bind address is
+    # not a valid Host expectation.
+    hosts, origins = http_allowlists(
+        "0.0.0.0", ["svc.workers.dev"], ["https://claude.ai"]
+    )
+    assert hosts == ["svc.workers.dev"]
+    assert "0.0.0.0:*" not in hosts
+    assert origins == ["https://claude.ai"]
+    with pytest.raises(ValueError, match="--allowed-host"):
+        http_allowlists("0.0.0.0", None, ["https://claude.ai"])
+    with pytest.raises(ValueError, match="--allowed-origin"):
+        http_allowlists("0.0.0.0", ["svc.workers.dev"], None)

@@ -53,6 +53,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--host", default="127.0.0.1", help="HTTP bind host (loopback default)")
     parser.add_argument("--port", type=int, default=8000, help="HTTP bind port")
     parser.add_argument(
+        "--allowed-host",
+        action="append",
+        default=None,
+        help=(
+            "expected Host header value, host[:port] (repeatable); required "
+            "for non-loopback binding, additive to loopback defaults"
+        ),
+    )
+    parser.add_argument(
         "--allowed-origin",
         action="append",
         default=None,
@@ -63,7 +72,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="mount the deprecated mixed plaky_execute_workflow dispatcher",
     )
-    parser.add_argument("--log-level", default="INFO")
+    parser.add_argument(
+        "--log-level",
+        default="INFO",
+        type=str.upper,
+        choices=("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"),
+    )
     return parser
 
 
@@ -131,25 +145,43 @@ def build_http_app(server: object, security: object, host: str) -> object:
     return app
 
 
+def http_allowlists(
+    host: str,
+    allowed_hosts_arg: list[str] | None,
+    allowed_origins_arg: list[str] | None,
+) -> tuple[list[str], list[str]]:
+    """Resolve Host/Origin allowlists; never derive Host from the bind address."""
+    if host in _LOOPBACK_HOSTS:
+        return (
+            ["127.0.0.1:*", "localhost:*", "[::1]:*", *(allowed_hosts_arg or [])],
+            list(allowed_origins_arg or []),
+        )
+    # Non-loopback binding is an explicit operator choice and requires
+    # explicit host/origin allowlists: clients send the public hostname in
+    # Host, not the bind address.
+    if not allowed_hosts_arg:
+        raise ValueError(
+            "plaky115-mcp: non-loopback binding requires at least one --allowed-host"
+        )
+    if not allowed_origins_arg:
+        raise ValueError(
+            "plaky115-mcp: non-loopback binding requires at least one --allowed-origin"
+        )
+    return list(allowed_hosts_arg), list(allowed_origins_arg)
+
+
 def _run_http(server: object, args: argparse.Namespace) -> int:
     import uvicorn
     from mcp.server.transport_security import TransportSecuritySettings
 
     host: str = args.host
-    if host in _LOOPBACK_HOSTS:
-        allowed_hosts = ["127.0.0.1:*", "localhost:*", "[::1]:*"]
-        allowed_origins = list(args.allowed_origin or [])
-    else:
-        # Non-loopback binding is an explicit operator choice and requires
-        # explicit host/origin allowlists.
-        if not args.allowed_origin:
-            print(
-                "plaky115-mcp: non-loopback binding requires at least one --allowed-origin",
-                file=sys.stderr,
-            )
-            return 2
-        allowed_hosts = [f"{host}:*"]
-        allowed_origins = list(args.allowed_origin)
+    try:
+        allowed_hosts, allowed_origins = http_allowlists(
+            host, args.allowed_host, args.allowed_origin
+        )
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
 
     security = TransportSecuritySettings(
         enable_dns_rebinding_protection=True,
