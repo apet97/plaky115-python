@@ -11,6 +11,8 @@ Exit code 0 only when every check passes.
 
 from __future__ import annotations
 
+# pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
+# pyright: reportUnknownArgumentType=false
 import hashlib
 import json
 import sys
