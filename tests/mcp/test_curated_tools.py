@@ -117,7 +117,26 @@ async def test_find_all_kinds() -> None:
 
 
 async def test_plan_mutation_operations() -> None:
-    async with Client(make_server()) as client:
+    writes: list[str] = []
+
+    def counting_handler(request: httpx2.Request) -> httpx2.Response:
+        if request.method != "GET":
+            writes.append(f"{request.method} {request.url.path}")
+        return handler(request)
+
+    sdk = AsyncPlakyClient(
+        api_key="plk_x", max_retries=0, transport=httpx2.MockTransport(counting_handler)
+    )
+    server = build_server(
+        ServerSettings(
+            api_key="plk_x",
+            mode="curated",
+            scopes=frozenset({"read", "write"}),
+            enable_compat_workflow=True,
+        ),
+        sdk,
+    )
+    async with Client(server) as client:
         cases: list[tuple[str, dict[str, Any]]] = [
             ("createItem", {"body": {"title": "T"}}),
             ("updateItemFields", {"itemId": "3", "body": {"s": "1"}}),
@@ -148,6 +167,7 @@ async def test_plan_mutation_operations() -> None:
             if operation == "uploadItemFile":
                 assert "fileBase64" not in str(plan)
                 assert plan["upload"]["decodedBytes"] == 5
+        assert writes == []
 
         invalid = await client.call_tool(
             "plaky_plan_mutation",
@@ -206,6 +226,22 @@ async def test_read_workflows() -> None:
             },
         )
         assert bad_format.is_error
+
+        # A csvSafety typo must fail, not silently disable formula protection.
+        bad_safety = await client.call_tool(
+            "plaky_execute_read_workflow",
+            {
+                "workflow": "export.items",
+                "args": {
+                    "spaceId": "1",
+                    "boardId": "7",
+                    "format": "csv",
+                    "csvSafety": "Spreadsheet",
+                },
+            },
+        )
+        assert bad_safety.is_error
+        assert bad_safety.structured_content["error"]["category"] == "validation"
 
 
 async def test_workspace_context_tool() -> None:
@@ -279,6 +315,93 @@ async def test_mutation_workflows_execute() -> None:
             },
         )
         assert bulk.structured_content["receipts"][0]["status"] == "completed"
+        assert bulk.structured_content["dryRun"] is False
+
+
+async def test_bulk_update_dry_run_is_labeled() -> None:
+    """A bulk dry-run must say so instead of reading like a failed live run."""
+    async with Client(make_server()) as client:
+        planned = await client.call_tool(
+            "plaky_execute_mutation_workflow",
+            {
+                "workflow": "items.updateFields",
+                "args": {
+                    "spaceId": "1",
+                    "boardId": "7",
+                    "updates": [{"item_id": "3", "body": {"s": "1"}}],
+                },
+            },
+        )
+        assert planned.is_error is False
+        assert planned.structured_content["dryRun"] is True
+        assert planned.structured_content["receipts"][0]["status"] == "planned"
+        text = planned.content[0].text
+        assert "dry-run" in text, text
+
+
+def make_failing_write_server(**overrides: Any):
+    """Server whose transport fails every non-GET request after dispatch."""
+
+    def failing_handler(request: httpx2.Request) -> httpx2.Response:
+        if request.method != "GET":
+            raise httpx2.ReadTimeout("read timed out", request=request)
+        return handler(request)
+
+    defaults: dict[str, Any] = {
+        "api_key": "plk_x",
+        "mode": "curated",
+        "scopes": frozenset({"read", "write"}),
+        "enable_compat_workflow": True,
+    }
+    defaults.update(overrides)
+    sdk = AsyncPlakyClient(
+        api_key="plk_x", max_retries=0, transport=httpx2.MockTransport(failing_handler)
+    )
+    return build_server(ServerSettings(**defaults), sdk)
+
+
+@pytest.mark.parametrize(
+    "tool", ["plaky_execute_mutation_workflow", "plaky_execute_workflow"]
+)
+async def test_failed_live_mutation_reports_ambiguous_receipt(tool: str) -> None:
+    """A failure after dispatch must report attempted/mayHaveCommitted, not preflight."""
+    async with Client(make_failing_write_server()) as client:
+        result = await client.call_tool(
+            tool,
+            {
+                "workflow": "items.create",
+                "args": {"spaceId": "1", "boardId": "7", "body": {"title": "T"}},
+                "dryRun": False,
+            },
+        )
+        assert result.is_error is True
+        error = result.structured_content["error"]
+        assert error["attempted"] is True, error
+        assert error["mayHaveCommitted"] is True, error
+        assert error["phase"] != "preflight", error
+
+
+async def test_preflight_mutation_failure_reports_no_attempt() -> None:
+    """A validation failure before dispatch must stay attempted=false/preflight."""
+    async with Client(make_failing_write_server()) as client:
+        result = await client.call_tool(
+            "plaky_execute_mutation_workflow",
+            {
+                "workflow": "itemFiles.upload",
+                "args": {
+                    "spaceId": "1",
+                    "boardId": "7",
+                    "itemId": "3",
+                    "body": {"fileBase64": "not-base64!!!", "fileName": "up.txt"},
+                },
+                "dryRun": False,
+            },
+        )
+        assert result.is_error is True
+        error = result.structured_content["error"]
+        assert error["attempted"] is False, error
+        assert error["mayHaveCommitted"] is False, error
+        assert error["phase"] == "preflight", error
 
 
 async def test_compat_dispatcher_handles_both_classes() -> None:

@@ -15,6 +15,7 @@ from mcp.types import CallToolResult, ToolAnnotations
 
 from plaky115.async_client import AsyncPlakyClient
 from plaky115.errors import PlakyError, PlakyPartialMutationError
+from plaky115.runtime.mutations import AttemptTracker
 from plaky115_mcp.compaction import error_result, make_result
 from plaky115_mcp.errors import envelope_wire, error_envelope, internal_error, usage_error
 from plaky115_mcp.outputs import EntityOutput
@@ -33,7 +34,7 @@ def build_execute_mutation_workflow(client: AsyncPlakyClient) -> ToolSpec:
         ctx: Context,  # type: ignore[type-arg]
         dryRun: bool = True,
     ) -> Annotated[CallToolResult, EntityOutput]:
-        tracker = None
+        trackers: list[AttemptTracker] = []
         try:
             if workflow not in MUTATION_WORKFLOW_IDS:
                 envelope = usage_error(
@@ -43,10 +44,9 @@ def build_execute_mutation_workflow(client: AsyncPlakyClient) -> ToolSpec:
             if workflow == "items.updateFields" and isinstance(args.get("updates"), list):
                 text, wire = await run_bulk_update(client, args, dry_run=dryRun, ctx=ctx)
                 return make_result(text=text, structured=wire)
-            text, wire, trackers = await run_mutation_workflow(
-                client, workflow, args, dry_run=dryRun, ctx=ctx
+            text, wire = await run_mutation_workflow(
+                client, workflow, args, dry_run=dryRun, ctx=ctx, trackers_out=trackers
             )
-            tracker = trackers[0] if trackers else None
             return make_result(text=text, structured=wire)
         except asyncio.CancelledError:
             # A cancelled modern MCP request is not answered; never return
@@ -55,6 +55,7 @@ def build_execute_mutation_workflow(client: AsyncPlakyClient) -> ToolSpec:
         except PlakyPartialMutationError as exc:
             return error_result(envelope_wire(error_envelope(exc)), str(exc))
         except (PlakyError, ValueError, TypeError, KeyError) as exc:
+            tracker = trackers[0] if trackers else None
             return error_result(envelope_wire(error_envelope(exc, tracker)), str(exc))
         except Exception as exc:
             return error_result(envelope_wire(internal_error(exc)), "Internal server error.")

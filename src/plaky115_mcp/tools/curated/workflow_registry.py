@@ -126,6 +126,9 @@ async def _run_export_items(
     export_format = str(args.get("format", "jsonl"))
     if export_format not in ("jsonl", "csv"):
         raise ValueError("format must be jsonl or csv")
+    csv_safety = str(args.get("csvSafety", "spreadsheet"))
+    if csv_safety not in ("spreadsheet", "raw"):
+        raise ValueError("csvSafety must be spreadsheet or raw")
     if ctx is not None:
         await ctx.report_progress(0, 1)
     chunk = await async_read_item_export_chunk(
@@ -133,7 +136,7 @@ async def _run_export_items(
         space=args["spaceId"],
         board=args["boardId"],
         format=export_format,  # type: ignore[arg-type]
-        csv_safety=str(args.get("csvSafety", "spreadsheet")),  # type: ignore[arg-type]
+        csv_safety=csv_safety,  # type: ignore[arg-type]
         max_items=int(args.get("maxItems", 100)),
         max_bytes=int(args.get("maxBytes", 65536)),
         cursor=_cursor(args),
@@ -188,8 +191,13 @@ async def run_mutation_workflow(
     *,
     dry_run: bool,
     ctx: Context | None,
-) -> tuple[str, dict[str, Any], tuple[AttemptTracker, ...]]:
-    """Validate, then (when enabled) execute exactly one mutation workflow."""
+    trackers_out: list[AttemptTracker] | None = None,
+) -> tuple[str, dict[str, Any]]:
+    """Validate, then (when enabled) execute exactly one mutation workflow.
+
+    The tracker is appended to trackers_out before dispatch so a failure
+    raised mid-write still reaches the caller's error envelope.
+    """
     operation = _MUTATION_PLAN_OPERATION[workflow]
     body = args.get("body")
     if not isinstance(body, dict):
@@ -211,13 +219,29 @@ async def run_mutation_workflow(
         args.get("itemFileId"),
     )
     if dry_run:
-        return (
-            f"{workflow}: dry-run validated; no write performed",
-            plan_wire(plan),
-            (),
+        return f"{workflow}: dry-run validated; no write performed", plan_wire(plan)
+
+    # All local preparation happens before request_started so a preflight
+    # failure never reports may_have_committed=True.
+    prepared_upload = None
+    if workflow == "itemFiles.upload":
+        from plaky115.runtime.upload import normalize_upload
+
+        prepared_upload = normalize_upload(
+            Base64UploadInput(
+                file_base64=str(body_dict.get("fileBase64", "")),
+                file_name=str(body_dict.get("fileName", "")),
+                content_type=(
+                    str(body_dict["contentType"])
+                    if body_dict.get("contentType") is not None
+                    else None
+                ),
+            )
         )
 
     tracker = AttemptTracker(operation, dict(plan.target_ids))
+    if trackers_out is not None:
+        trackers_out.append(tracker)
     if ctx is not None:
         await ctx.report_progress(0, 1)
     tracker.request_started()
@@ -251,23 +275,14 @@ async def run_mutation_workflow(
             body=dict(plan.body),
         )
     elif workflow == "itemFiles.upload":
-        upload = Base64UploadInput(
-            file_base64=str(body_dict.get("fileBase64", "")),
-            file_name=str(body_dict.get("fileName", "")),
-            content_type=(
-                str(body_dict["contentType"]) if body_dict.get("contentType") is not None else None
-            ),
-        )
-        from plaky115.runtime.upload import normalize_upload
-
-        normalized = normalize_upload(upload)
+        assert prepared_upload is not None
         result = await client.item_files.upload(
             space_id=args["spaceId"],
             board_id=args["boardId"],
             item_id=args["itemId"],
-            file=normalized.data,
-            file_name=normalized.file_name,
-            content_type=normalized.media_type,
+            file=prepared_upload.data,
+            file_name=prepared_upload.file_name,
+            content_type=prepared_upload.media_type,
         )
     else:  # itemFiles.update
         result = await client.item_files.update(
@@ -293,7 +308,7 @@ async def run_mutation_workflow(
             mode="json", by_alias=True, exclude_none=True
         ),
     }
-    return f"{workflow}: completed", wire, (tracker,)
+    return f"{workflow}: completed", wire
 
 
 async def run_bulk_update(
@@ -316,10 +331,13 @@ async def run_bulk_update(
         on_progress=progress,
     )
     wire = {
+        "dryRun": dry_run,
         "receipts": [
             receipt_model(r).model_dump(mode="json", by_alias=True, exclude_none=True)
             for r in receipts
-        ]
+        ],
     }
+    if dry_run:
+        return f"items.updateFields: dry-run validated {len(receipts)} update(s)", wire
     completed = sum(1 for r in receipts if r.status == "completed")
     return f"items.updateFields: {completed}/{len(receipts)} completed", wire
