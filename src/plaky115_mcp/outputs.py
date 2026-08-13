@@ -31,17 +31,23 @@ class OkSuccess(BaseModel):
     ok: bool
 
 
+# Every possible result is a JSON object; the explicit top-level
+# "type": "object" keeps the schema valid for legacy (2025-11-25) hosts,
+# which reject bare anyOf output schemas.
+_OBJECT_SCHEMA = ConfigDict(json_schema_extra={"type": "object"})
+
+
 class PagedOutput(RootModel[PagedSuccess | ErrorEnvelope]):
-    pass
+    model_config = _OBJECT_SCHEMA
 
 
 class ListOutput(RootModel[ListSuccess | ErrorEnvelope]):
-    pass
+    model_config = _OBJECT_SCHEMA
 
 
 class OkOutput(RootModel[OkSuccess | ErrorEnvelope]):
-    pass
+    model_config = _OBJECT_SCHEMA
 
 
 class EntityOutput(RootModel[ErrorEnvelope | dict[str, Any]]):
-    pass
+    model_config = _OBJECT_SCHEMA

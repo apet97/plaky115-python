@@ -116,7 +116,12 @@ executionEnvironments = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
-filterwarnings = ["error"]
+filterwarnings = [
+  "error",
+  # Transport tests spawn real subprocesses and HTTP servers; socket
+  # teardown timing makes ResourceWarning nondeterministic.
+  "ignore::ResourceWarning",
+]
 
 [tool.coverage.run]
 branch = true

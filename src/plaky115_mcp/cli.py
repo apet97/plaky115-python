@@ -105,16 +105,35 @@ def main(argv: list[str] | None = None) -> int:
     return _run_http(server, args)
 
 
-def _run_http(server: object, args: argparse.Namespace) -> int:
-    import uvicorn
+def build_http_app(server: object, security: object, host: str) -> object:
+    """Assemble the deployable Starlette app: MCP endpoint plus /healthz."""
+    from mcp.server import MCPServer
     from mcp.server.transport_security import TransportSecuritySettings
     from starlette.requests import Request
     from starlette.responses import JSONResponse
 
     from plaky115._version import __version__
-    from plaky115_mcp.server import MCPServer
 
     assert isinstance(server, MCPServer)
+    assert isinstance(security, TransportSecuritySettings)
+    app = server.streamable_http_app(
+        stateless_http=True,
+        json_response=False,
+        max_request_body_size=MAX_REQUEST_BODY_BYTES,
+        transport_security=security,
+        host=host,
+    )
+
+    async def healthz(_request: Request) -> JSONResponse:
+        return JSONResponse({"status": "ok", "version": __version__})
+
+    app.add_route("/healthz", healthz, methods=["GET"])
+    return app
+
+
+def _run_http(server: object, args: argparse.Namespace) -> int:
+    import uvicorn
+    from mcp.server.transport_security import TransportSecuritySettings
 
     host: str = args.host
     if host in _LOOPBACK_HOSTS:
@@ -137,20 +156,8 @@ def _run_http(server: object, args: argparse.Namespace) -> int:
         allowed_hosts=allowed_hosts,
         allowed_origins=allowed_origins,
     )
-    app = server.streamable_http_app(
-        stateless_http=True,
-        json_response=False,
-        max_request_body_size=MAX_REQUEST_BODY_BYTES,
-        transport_security=security,
-        host=host,
-    )
-
-    async def healthz(_request: Request) -> JSONResponse:
-        return JSONResponse({"status": "ok", "version": __version__})
-
-    app.add_route("/healthz", healthz, methods=["GET"])
-
-    uvicorn.run(app, host=host, port=args.port, log_config=None)
+    app = build_http_app(server, security, host)
+    uvicorn.run(app, host=host, port=args.port, log_config=None)  # type: ignore[arg-type]
     return 0
 
 
