@@ -15,6 +15,7 @@ from __future__ import annotations
 # pyright: reportUnknownArgumentType=false
 import hashlib
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -22,7 +23,11 @@ from typing import Any
 import yaml
 
 REPO = Path(__file__).resolve().parent.parent
-SOURCE_CHECKOUT = Path("/Users/15x/Downloads/WORKING/addons-me/plaky115")
+SOURCE_CHECKOUT = Path(
+    os.environ.get(
+        "PLAKY115_SOURCE_CHECKOUT", "/Users/15x/Downloads/WORKING/addons-me/plaky115"
+    )
+)
 
 EXPECTED_OPERATION_COUNT = 32
 
@@ -137,7 +142,8 @@ def main() -> int:
         "source manifest commit mismatch",
     )
     check(manifest["sourceRelease"] == "v1.0.11", "source manifest release mismatch")
-    if SOURCE_CHECKOUT.is_dir():
+    provenance_checked = SOURCE_CHECKOUT.is_dir()
+    if provenance_checked:
         for f in manifest["files"]:
             p = SOURCE_CHECKOUT / f["sourcePath"]
             if not p.is_file():
@@ -145,12 +151,12 @@ def main() -> int:
                 continue
             digest = hashlib.sha256(p.read_bytes()).hexdigest()
             check(digest == f["sourceSha256"], f"manifest hash drift for {f['sourcePath']}")
-    # Verbatim copies must be byte-identical to their targets.
-    for f in manifest["files"]:
-        if f["translation"] == "verbatim copy" and SOURCE_CHECKOUT.is_dir():
-            src = (SOURCE_CHECKOUT / f["sourcePath"]).read_bytes()
-            dst = (REPO / f["target"]).read_bytes()
-            check(src == dst, f"verbatim copy drift: {f['target']}")
+        # Verbatim copies must be byte-identical to their targets.
+        for f in manifest["files"]:
+            if f["translation"] == "verbatim copy":
+                src = (SOURCE_CHECKOUT / f["sourcePath"]).read_bytes()
+                dst = (REPO / f["target"]).read_bytes()
+                check(src == dst, f"verbatim copy drift: {f['target']}")
 
     # The upstream mirror keeps Plaky's raw operationIds (e.g. getSpaces);
     # canonical operationIds are assigned by the overrides layer, keyed by
@@ -174,7 +180,13 @@ def main() -> int:
         for f in failures:
             print(f"  - {f}")
         return 1
-    print("PARITY OK: 32 operations, 7 curated tools, 11 workflows, manifest hashes verified")
+    hashes = (
+        "manifest hashes verified"
+        if provenance_checked
+        else "manifest hashes SKIPPED (source checkout unavailable; "
+        "set PLAKY115_SOURCE_CHECKOUT to verify provenance)"
+    )
+    print(f"PARITY OK: 32 operations, 7 curated tools, 11 workflows, {hashes}")
     return 0
 
 

@@ -505,6 +505,10 @@ def main() -> int:
                 failures.append(f"missing {rel}")
             elif target.read_text(encoding="utf-8") != content:
                 failures.append(f"drift in {rel}")
+        # Orphan generated modules would ship in the wheel unnoticed.
+        expected = {t for t in outputs if t.parent == RAW_TOOLS_DIR}
+        for orphan in sorted(set(RAW_TOOLS_DIR.glob("generated_*.py")) - expected):
+            failures.append(f"orphan generated module {orphan.relative_to(REPO)}")
         if failures:
             print("GENERATE CHECK FAIL:")
             for f in failures:

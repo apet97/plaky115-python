@@ -144,6 +144,7 @@ def main() -> int:
             env={**os.environ, "PLAKY115_API_KEY": "plk_smoke_key"},
             check=False,
         )
+        assert stdio.returncode == 0, f"stdio exited {stdio.returncode}: {stdio.stderr[:200]!r}"
         assert stdio.stdout == "", f"stdio stdout not protocol-clean: {stdio.stdout[:200]!r}"
 
         # Installed typing proof: strict Pyright over an external consumer

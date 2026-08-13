@@ -19,8 +19,9 @@ REPO = Path(__file__).resolve().parent.parent
 # in fixtures (plk_x, plk_test...) are non-secrets by construction.
 PATTERNS: dict[str, re.Pattern[bytes]] = {
     "plaky-api-key": re.compile(rb"plk_[A-Za-z0-9_-]{20,}"),
-    "pypi-token": re.compile(rb"pypi-AgEIcHlwaS5vcmc[A-Za-z0-9_-]{20,}"),
+    "pypi-token": re.compile(rb"pypi-AgE[A-Za-z0-9_-]{20,}"),
     "github-token": re.compile(rb"gh[pousr]_[A-Za-z0-9]{30,}"),
+    "github-fine-grained-pat": re.compile(rb"github_pat_[A-Za-z0-9_]{20,}"),
     "private-key": re.compile(rb"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
     "signed-url": re.compile(rb"X-Amz-Signature=[A-Za-z0-9]{16,}"),
 }

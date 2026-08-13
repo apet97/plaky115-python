@@ -14,6 +14,7 @@ import hashlib
 import json
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -60,6 +61,10 @@ def main() -> int:
         [python, "-m", "py_compile", *sorted(str(p) for p in (REPO / "examples").glob("*.py"))],
     )
     run_gate("docs-secrets", [python, "scripts/check_docs.py"])
+    # Stale artifacts from earlier commits must not reach twine-check,
+    # package-smoke, or the digest receipt.
+    for stale in (REPO / "dist").glob("plaky115-*"):
+        stale.unlink()
     run_gate("build", ["uv", "build"])
     run_gate("twine-check", [python, "-m", "twine", "check", "dist/plaky115-*"])
 
@@ -83,10 +88,20 @@ def main() -> int:
     run_gate("lock-integrity", ["uv", "lock", "--check"])
 
     if args.release_online:
+        # Audit the exported lockfile: the project itself is not on PyPI
+        # yet at release time, so an environment audit cannot be strict.
+        requirements = Path(tempfile.gettempdir()) / "plaky115-requirements-audit.txt"
+        run_gate(
+            "dependency-export",
+            ["uv", "export", "--frozen", "--all-extras", "--no-emit-project",
+             "-o", str(requirements)],
+        )
         run_gate(
             "dependency-audit",
-            [python, "-m", "pip_audit", "--strict"],
+            [python, "-m", "pip_audit", "--strict", "--disable-pip",
+             "--require-hashes", "-r", str(requirements)],
         )
+        requirements.unlink(missing_ok=True)
     else:
         receipts.append(
             {
