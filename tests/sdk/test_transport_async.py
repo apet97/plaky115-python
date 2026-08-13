@@ -213,6 +213,49 @@ async def test_get_retries_on_429_and_5xx() -> None:
     assert calls == 3
 
 
+async def test_retry_after_header_reaches_backoff(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The server's Retry-After value must drive the retry delay (async)."""
+    seen: list[tuple[Any, int]] = []
+    monkeypatch.setattr(
+        transport_module,
+        "retry_delay_ms",
+        lambda retry_after, attempt: seen.append((retry_after, attempt)) or 0.0,
+    )
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        if not seen:
+            return httpx2.Response(429, headers={"retry-after": "1"})
+        return httpx2.Response(200, json={"ok": True})
+
+    async with mock_client(handler) as client:
+        await async_request(
+            client, RequestSpec(method="GET", path="/x"), make_options(max_retries=1)
+        )
+    assert seen == [("1", 0)]
+
+
+def test_retry_after_header_reaches_backoff_sync(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The server's Retry-After value must drive the retry delay (sync)."""
+    import plaky115.runtime.transport as sync_transport_module
+    from plaky115.http import request
+
+    seen: list[tuple[Any, int]] = []
+    monkeypatch.setattr(
+        sync_transport_module,
+        "retry_delay_ms",
+        lambda retry_after, attempt: seen.append((retry_after, attempt)) or 0.0,
+    )
+
+    def handler(request_in: httpx2.Request) -> httpx2.Response:
+        if not seen:
+            return httpx2.Response(429, headers={"retry-after": "1"})
+        return httpx2.Response(200, json={"ok": True})
+
+    with httpx2.Client(transport=httpx2.MockTransport(handler)) as client:
+        request(client, RequestSpec(method="GET", path="/x"), make_options(max_retries=1))
+    assert seen == [("1", 0)]
+
+
 async def test_retry_budget_exhaustion_raises_last_error() -> None:
     calls = 0
 

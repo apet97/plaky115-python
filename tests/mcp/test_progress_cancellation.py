@@ -229,7 +229,9 @@ async def test_read_timeout_surfaces_as_client_error(fake_plaky_api: str) -> Non
     _FakePlakyHandler.slow_spaces_seconds = 3.0
     async with _http_server(fake_plaky_api) as base:
         async with Client(f"{base}/mcp") as client:
-            with pytest.raises(BaseException):  # noqa: B017 - timeout type is transport-defined
+            from mcp.shared.exceptions import MCPError
+
+            with pytest.raises(MCPError, match="timed out"):
                 await client.call_tool(
                     "plaky_find",
                     {"kind": "space", "query": "S"},

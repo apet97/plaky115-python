@@ -52,3 +52,29 @@ def test_bound_text_redacts_and_caps() -> None:
     assert "plk_abc" not in out
     assert len(out) == 10
     assert out.endswith("…")
+
+
+def test_key_bearing_transport_exception_never_leaks() -> None:
+    """A httpx failure whose message embeds the key surfaces without it."""
+    import httpx2
+    import pytest
+
+    from plaky115.errors import PlakyConnectionError
+    from plaky115.http import RequestOptions, RequestSpec, request
+    from plaky115.runtime.mutations import mutation_error_summary
+
+    def handler(request_in: httpx2.Request) -> httpx2.Response:
+        raise httpx2.ConnectError("refused for key plk_live_secret", request=request_in)
+
+    options = RequestOptions(
+        api_key="plk_live_secret",
+        server_url="https://api.example.test",
+        timeout=5.0,
+        max_retries=0,
+    )
+    with httpx2.Client(transport=httpx2.MockTransport(handler)) as client:
+        with pytest.raises(PlakyConnectionError) as info:
+            request(client, RequestSpec(method="GET", path="/x"), options)
+    assert "plk_live_secret" not in str(info.value)
+    summary = mutation_error_summary(info.value)
+    assert "plk_live_secret" not in summary.message
