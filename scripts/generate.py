@@ -91,7 +91,28 @@ def generate_models() -> str:
     )
     if not body.endswith("\n"):
         body += "\n"
-    return HEADER + body
+    return _repo_format(HEADER + body)
+
+
+def _repo_format(content: str) -> str:
+    """Format generated code with the repository's own ruff configuration."""
+    with tempfile.TemporaryDirectory() as tmp:
+        target = Path(tmp) / "generated.py"
+        target.write_text(content)
+        subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "ruff",
+                "format",
+                "--config",
+                str(REPO / "pyproject.toml"),
+                str(target),
+            ],
+            check=True,
+            capture_output=True,
+        )
+        return target.read_text()
 
 
 def main() -> int:

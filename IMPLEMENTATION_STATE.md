@@ -1,12 +1,12 @@
 # Implementation State
 
 - Baseline SHA: 33ae2926aa696f36d9663d44f914d42d9aadc53f (plaky115 v1.0.11)
-- Current phase: 2 complete — contract pipeline + generated models
+- Current phase: 5 complete — runtime core (IDs, errors, transport, pagination, chunks, uploads, mutations)
 - Current branch: main
-- Last completed slice: contract.py build/check/fetch/diff/accept + deterministic Pydantic model generation
-- Last green focused command: ruff format --check; ruff check; pyright (0 errors); pytest (19); contract check; generate --check; parity
+- Last completed slice: sync+async transports with GET-only retries, bounded reads, hooks, timeouts; redaction; rate-limit tracker; upload validation; mutation receipts; 173 tests
+- Last green focused command: ruff format+check; pyright (0); pytest (173); contract check; generate --check; parity
 - Last green offline verification: (none yet)
 - Current failures: (none)
-- Next exact action: Phase 3 — IDs, config, models/common, redaction
+- Next exact action: Phase 6-7 — async resources for all 32 operations
 - Uncommitted files: all (initial)
 - External blockers: (none recorded yet)

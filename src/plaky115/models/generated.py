@@ -130,9 +130,7 @@ class FolderResponse(BaseModel):
         str | None,
         Field(description="Represents lexicographical string used for ordering."),
     ] = None
-    title: Annotated[
-        str | None, Field(description="Represents title of the item group.")
-    ] = None
+    title: Annotated[str | None, Field(description="Represents title of the item group.")] = None
 
 
 class ItemAttributeConfiguration(RootModel[Any]):
@@ -168,9 +166,7 @@ class ItemCreateRequest(BaseModel):
         dict[str, Any] | None,
         Field(
             description='Represents item field values added to the item. If it is omitted then item will be created with default values. Field can be\nspecified by it\'s key or by it\'s title. Field value differs per type and for some types it can be specified in multiple ways.\n\n| Type | Examples (Key / Title) |\n| :--- | :--- |\n| **String** | `{"string-1" : "test"}` <br> `{"String Field Title" : "test"}` |\n| **Rich Text** | `{"rich_text-1" : "some rich text"}` <br> `{"Description" : "some rich text"}` |\n| **Number** | `{"number-1" : 13.4}` <br> `{"Price" : 13.4}` |\n| **Date** | `{"date_time-1" : "2017-06-02T18:10:15.254Z"}` <br> `{"Date" : "2017-06-02T18:10:15.254Z"}` |\n| **Timeline** | `{"timeline-1" : {"start" : "2026-01-02T18:10:15.254Z", "end": "2026-02-02T18:10:15.254Z"}}` <br> `{"Timeline" : {"start" : "2026-01-02T18:10:15.254Z", "end": "2026-02-02T18:10:15.254Z"}}` |\n| **Status** | `{"status-1" : "1"}`, `{"status-1" : "To do"}` <br> `{"Status" : "1"}`, `{"Status" : "To do"}` |\n| **Tag** | `{"tag-1" : ["1", "2"]}`, `{"tag-1" : ["Product", "HR"]}` <br> `{"Department" : ["1", "2"]}`, `{"Department" : ["Product", "HR"]}` |\n| **Link** | `{"link-1" : "https://www.google.com"}` <br> `{"link-1" : {"url" : "https://www.google.com", "displayText" : "Google"}}` <br> `{"Link" : "https://www.google.com"}` |\n| **Person** | `{"person-1": {"users" : [{"id" : "1"}, {"email" : "test@gmail.com"}], "teams": [{"id" : 1}, {"title" : "Backend Team"}]}}` <br> `{"Assignee": {"users" : [{"id" : "1"}, {"email" : "test@gmail.com"}], "teams": [{"id" : 1}, {"title" : "Backend Team"}]}}` |\n',
-            examples=[
-                {"Description": "Test description", "Status": "To do", "number-1": 50}
-            ],
+            examples=[{"Description": "Test description", "Status": "To do", "number-1": 50}],
         ),
     ] = None
     group_id: Annotated[
@@ -239,12 +235,8 @@ class ItemFieldResponse(BaseModel):
             examples=["status-1", "tag-1", "person-1"],
         ),
     ] = None
-    title: Annotated[
-        str | None, Field(description="Represents title of the item field.")
-    ] = None
-    type: Annotated[
-        Type1 | None, Field(description="Represents type of the item field.")
-    ] = None
+    title: Annotated[str | None, Field(description="Represents title of the item field.")] = None
+    type: Annotated[Type1 | None, Field(description="Represents type of the item field.")] = None
     value: Annotated[
         Any | None,
         Field(
@@ -290,27 +282,23 @@ class ItemFileResponse(BaseModel):
             description="Represents date and time of the file upload (UTC) in ISO-8601 format.",
         ),
     ] = None
-    description: Annotated[
-        str | None, Field(description="Represents item file description.")
-    ] = None
+    description: Annotated[str | None, Field(description="Represents item file description.")] = (
+        None
+    )
     extension: Annotated[
         str | None,
         Field(description="Represents item file extension.", examples=["pdf"]),
     ] = None
     file_type: Annotated[
         str | None,
-        Field(
-            alias="fileType", description="Represents item file type.", examples=["PDF"]
-        ),
+        Field(alias="fileType", description="Represents item file type.", examples=["PDF"]),
     ] = None
     id: Annotated[
         int | None,
         Field(description="Represents unique item file identifier across the system."),
     ] = None
     name: Annotated[str | None, Field(description="Represents item file name.")] = None
-    size: Annotated[
-        int | None, Field(description="Represents item file size in bytes.")
-    ] = None
+    size: Annotated[int | None, Field(description="Represents item file size in bytes.")] = None
     uploaded_by: Annotated[
         int | None,
         Field(
@@ -360,9 +348,7 @@ class ItemGroupCreateRequest(BaseModel):
     ] = None
     ranking: Annotated[
         str | None,
-        Field(
-            description="Represents lexicographical string used for custom ordering/sorting."
-        ),
+        Field(description="Represents lexicographical string used for custom ordering/sorting."),
     ] = None
     title: Annotated[
         str,
@@ -395,13 +381,9 @@ class ItemGroupResponse(BaseModel):
     ] = None
     ranking: Annotated[
         str | None,
-        Field(
-            description="Represents lexicographical string used for custom ordering/sorting."
-        ),
+        Field(description="Represents lexicographical string used for custom ordering/sorting."),
     ] = None
-    title: Annotated[
-        str | None, Field(description="Represents title of the item group.")
-    ] = None
+    title: Annotated[str | None, Field(description="Represents title of the item group.")] = None
 
 
 class ItemGroupUpdateRequest(BaseModel):
@@ -496,9 +478,9 @@ class NumberConfiguration(BaseModel):
             description="Represents a custom string value for the unit if unit type is custom.",
         ),
     ] = None
-    unit: Annotated[
-        Unit | None, Field(description="Represents the type of unit to display.")
-    ] = None
+    unit: Annotated[Unit | None, Field(description="Represents the type of unit to display.")] = (
+        None
+    )
     unit_alignment: Annotated[
         UnitAlignment | None,
         Field(
@@ -687,9 +669,7 @@ class ShortUserResponse(BaseModel):
         Field(description="Represents unique user identifier across the system."),
     ] = None
     name: Annotated[str | None, Field(description="Represents user's name.")] = None
-    type: Annotated[Type2 | None, Field(description="Represents type of the user.")] = (
-        None
-    )
+    type: Annotated[Type2 | None, Field(description="Represents type of the user.")] = None
 
 
 class Kind1(StrEnum):
@@ -708,9 +688,7 @@ class StatusLabelDefinition(BaseModel):
     )
     color: Annotated[
         str | None,
-        Field(
-            description="Represents the hexadecimal color code representing the status."
-        ),
+        Field(description="Represents the hexadecimal color code representing the status."),
     ] = None
     is_final: Annotated[
         bool | None,
@@ -735,9 +713,7 @@ class TagLabelDefinition(BaseModel):
     )
     color: Annotated[
         str | None,
-        Field(
-            description="Represents the hexadecimal color code representing the status."
-        ),
+        Field(description="Represents the hexadecimal color code representing the status."),
     ] = None
     key: Annotated[
         str | None,
@@ -774,13 +750,9 @@ class TeamResponse(BaseModel):
     ] = None
     members: Annotated[
         list[int] | None,
-        Field(
-            description="Represents the list of user ids which are members of the team"
-        ),
+        Field(description="Represents the list of user ids which are members of the team"),
     ] = None
-    title: Annotated[str | None, Field(description="Represents title of the team.")] = (
-        None
-    )
+    title: Annotated[str | None, Field(description="Represents title of the team.")] = None
 
 
 class TeamShortResponse(BaseModel):
@@ -803,9 +775,7 @@ class TeamShortResponse(BaseModel):
         int | None,
         Field(description="Represents unique team identifier across the system."),
     ] = None
-    title: Annotated[str | None, Field(description="Represents title of the team.")] = (
-        None
-    )
+    title: Annotated[str | None, Field(description="Represents title of the team.")] = None
 
 
 class TimelineConfiguration(BaseModel):
@@ -826,9 +796,7 @@ class TimelineConfiguration(BaseModel):
     ] = None
     show_time: Annotated[
         bool | None,
-        Field(
-            alias="showTime", description="Represents whether the time is displayed."
-        ),
+        Field(alias="showTime", description="Represents whether the time is displayed."),
     ] = None
 
 
@@ -852,9 +820,7 @@ class UserDetails(BaseModel):
             description="Represents list of custom fields of the user",
         ),
     ] = None
-    location: Annotated[
-        str | None, Field(description="Represents location of the user")
-    ] = None
+    location: Annotated[str | None, Field(description="Represents location of the user")] = None
     mobile_phone: Annotated[
         str | None,
         Field(
@@ -862,12 +828,8 @@ class UserDetails(BaseModel):
             description="Represents mobile phone number of the user",
         ),
     ] = None
-    phone: Annotated[
-        str | None, Field(description="Represents phone number of the user")
-    ] = None
-    title: Annotated[str | None, Field(description="Represents title of the user")] = (
-        None
-    )
+    phone: Annotated[str | None, Field(description="Represents phone number of the user")] = None
+    title: Annotated[str | None, Field(description="Represents title of the user")] = None
     work_anniversary: Annotated[
         date | None,
         Field(alias="workAnniversary", description="Represents status of the user"),
@@ -893,9 +855,9 @@ class UserResponse(BaseModel):
         extra="allow",
         populate_by_name=True,
     )
-    details: Annotated[
-        UserDetails | None, Field(description="Represents details of the user")
-    ] = None
+    details: Annotated[UserDetails | None, Field(description="Represents details of the user")] = (
+        None
+    )
     email: Annotated[str | None, Field(description="Represents user's email.")] = None
     id: Annotated[
         int | None,
@@ -906,12 +868,8 @@ class UserResponse(BaseModel):
         str | None,
         Field(alias="photoUrl", description="Represents url of the user profile photo"),
     ] = None
-    status: Annotated[
-        Status | None, Field(description="Represents status of the user")
-    ] = None
-    type: Annotated[Type2 | None, Field(description="Represents type of the user.")] = (
-        None
-    )
+    status: Annotated[Status | None, Field(description="Represents status of the user")] = None
+    type: Annotated[Type2 | None, Field(description="Represents type of the user.")] = None
 
 
 class Violation(BaseModel):
@@ -932,9 +890,7 @@ class CommentResponse(BaseModel):
         extra="allow",
         populate_by_name=True,
     )
-    content: Annotated[
-        str | None, Field(description="Represents content of the comment.")
-    ] = None
+    content: Annotated[str | None, Field(description="Represents content of the comment.")] = None
     created_at: Annotated[
         AwareDatetime | None,
         Field(
@@ -955,9 +911,7 @@ class CommentResponse(BaseModel):
     ] = None
     id: Annotated[
         int | None,
-        Field(
-            description="Represents unique item comment identifier across the system."
-        ),
+        Field(description="Represents unique item comment identifier across the system."),
     ] = None
     pinned: Annotated[
         bool | None, Field(description="Indicates whether the comment is pinned.")
@@ -1141,15 +1095,11 @@ class ItemAttributeDefinition(BaseModel):
         int | None,
         Field(description="Represents unique identifier of the item attribute."),
     ] = None
-    key: Annotated[
-        str | None, Field(description="Represents key of the item attribute.")
-    ] = None
-    name: Annotated[
-        str | None, Field(description="Represents name of the item attribute.")
-    ] = None
-    type: Annotated[
-        Type | None, Field(description="Represents type of the item attribute.")
-    ] = None
+    key: Annotated[str | None, Field(description="Represents key of the item attribute.")] = None
+    name: Annotated[str | None, Field(description="Represents name of the item attribute.")] = None
+    type: Annotated[Type | None, Field(description="Represents type of the item attribute.")] = (
+        None
+    )
 
 
 class BoardResponse(BaseModel):
@@ -1190,17 +1140,13 @@ class BoardResponse(BaseModel):
         ),
     ] = None
     groups: list[ItemGroupResponse] | None = None
-    id: Annotated[
-        int | None, Field(description="Represents unique identifier of the board.")
-    ] = None
-    kind: Annotated[Kind | None, Field(description="Represents type of the board.")] = (
+    id: Annotated[int | None, Field(description="Represents unique identifier of the board.")] = (
         None
     )
+    kind: Annotated[Kind | None, Field(description="Represents type of the board.")] = None
     ranking: Annotated[
         str | None,
-        Field(
-            description="Represents lexicographical string used for the board ordering."
-        ),
+        Field(description="Represents lexicographical string used for the board ordering."),
     ] = None
     space: Annotated[
         SpaceResponse | int | None,
@@ -1214,9 +1160,7 @@ class BoardResponse(BaseModel):
             description="If true, it means the board serves as a template for generating other production-ready boards."
         ),
     ] = None
-    title: Annotated[
-        str | None, Field(description="Represents title of the board.")
-    ] = None
+    title: Annotated[str | None, Field(description="Represents title of the board.")] = None
 
 
 class ItemResponse(BaseModel):
@@ -1392,15 +1336,11 @@ class SpaceResponse(BaseModel):
         str | None,
         Field(alias="iconUrl", description="Represents url of the space icon."),
     ] = None
-    id: Annotated[
-        int | None, Field(description="Represents unique identifier of the space.")
-    ] = None
-    kind: Annotated[Kind1 | None, Field(description="Represent kind of the space.")] = (
+    id: Annotated[int | None, Field(description="Represents unique identifier of the space.")] = (
         None
     )
-    title: Annotated[
-        str | None, Field(description="Represents title of the space.")
-    ] = None
+    kind: Annotated[Kind1 | None, Field(description="Represent kind of the space.")] = None
+    title: Annotated[str | None, Field(description="Represents title of the space.")] = None
 
 
 UserDetails.model_rebuild()
