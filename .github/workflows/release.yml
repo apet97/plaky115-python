@@ -1,47 +1,70 @@
 name: release
 
 # Publishes to PyPI through trusted publishing (OIDC, no stored token).
-# Prerequisite: register this repository + workflow as a (pending) trusted
-# publisher for the "plaky115" project on pypi.org. Publication only runs
-# for version tags, which are pushed manually under separate authorization.
+# Prerequisite: register this repository + workflow as a trusted publisher
+# for the "plaky115" project on pypi.org. Publication only runs for
+# version tags, which are pushed manually under separate authorization.
+#
+# The verify job runs the full release gate suite (including the online
+# dependency audit) and builds the artifacts; publish consumes exactly
+# those artifacts. Never rebuild between verification and publication.
 
 on:
   push:
     tags:
-      - "v*"
+      - "v[0-9]*"
 
 permissions:
   contents: read
 
 jobs:
-  build:
+  verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # actions/checkout v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0 # hatch-vcs derives the version from the tag
-      - uses: astral-sh/setup-uv@v5
-      - name: Build sdist and wheel
-        run: uv build
-      - name: Check metadata
-        run: uvx twine check dist/*
-      - uses: actions/upload-artifact@v4
+      # actions/setup-python v5.3.0
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b
+        with:
+          python-version: "3.13"
+      - name: Install uv (pinned)
+        run: python -m pip install uv==0.9.18
+      - name: Tag must point at a commit on main
+        run: |
+          git fetch origin main
+          git merge-base --is-ancestor HEAD origin/main
+      - name: Sync
+        run: uv sync --frozen --all-extras --group dev
+      - name: Version must match the tag
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="$(uv run python -c 'from plaky115._version import __version__; print(__version__)')"
+          test "$version" = "${TAG#v}"
+      - name: Release verification (offline gates + dependency audit)
+        run: uv run python scripts/verify.py --release-online
+      # actions/upload-artifact v4.6.2
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: dist
           path: dist/
           if-no-files-found: error
 
   publish:
-    needs: build
+    needs: verify
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
       id-token: write # trusted publishing
     steps:
-      - uses: actions/download-artifact@v4
+      # actions/download-artifact v4.3.0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: dist
           path: dist/
-      - uses: pypa/gh-action-pypi-publish@release/v1
+      # pypa/gh-action-pypi-publish v1.14.2
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33
         with:
           print-hash: true

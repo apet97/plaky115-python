@@ -42,11 +42,3 @@ jobs:
         run: uv sync --frozen --all-extras --group dev
       - name: Offline verification
         run: uv run python scripts/verify.py --offline
-        if: hashFiles('scripts/verify.py') != ''
-      - name: Focused gates (until verify.py lands)
-        if: hashFiles('scripts/verify.py') == ''
-        run: |
-          uv run ruff format --check .
-          uv run ruff check .
-          uv run pyright
-          uv run pytest
