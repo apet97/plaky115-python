@@ -1,0 +1,137 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "plaky115"
+dynamic = ["version"]
+description = "Unofficial Plaky API SDK and MCP server. Not affiliated with, endorsed by, or sponsored by Plaky or CAKE.com."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+authors = [{ name = "apet97" }]
+keywords = ["plaky", "sdk", "mcp", "api-client"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Typing :: Typed",
+]
+dependencies = [
+  "httpx2>=2.5,<3",
+  "pydantic>=2.12,<3",
+  "typing-extensions>=4.13",
+]
+
+[project.optional-dependencies]
+mcp = [
+  "mcp>=2,<3",
+]
+
+[project.scripts]
+plaky115-mcp = "plaky115_mcp.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/apet97/plaky115-python"
+Source = "https://github.com/apet97/plaky115-python"
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3",
+  "anyio>=4.6",
+  "coverage[toml]>=7.6",
+  "ruff>=0.9",
+  "pyright>=1.1.390",
+  "build>=1.2",
+  "twine>=6.0",
+  "pip-audit>=2.7",
+  "PyYAML>=6.0",
+  "jsonschema>=4.23",
+  "openapi-spec-validator>=0.9,<1",
+  "datamodel-code-generator==0.72.4",
+  "uvicorn>=0.32",
+]
+
+[tool.hatch.version]
+source = "vcs"
+fallback-version = "0.0.0.dev0"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/plaky115/_version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/plaky115", "src/plaky115_mcp"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "src",
+  "LICENSE",
+  "README.md",
+  "SECURITY.md",
+  "pyproject.toml",
+]
+
+[tool.ruff]
+line-length = 99
+target-version = "py311"
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = [
+  "E", "F", "W",      # pycodestyle/pyflakes
+  "I",                # isort
+  "UP",               # pyupgrade
+  "B",                # bugbear
+  "C4",               # comprehensions
+  "SIM",              # simplify
+  "RUF",
+]
+ignore = [
+  "SIM108",  # ternary is not always clearer
+]
+
+[tool.ruff.lint.per-file-ignores]
+"src/plaky115/models/generated.py" = ["E501", "I001"]
+"src/plaky115_mcp/tools/raw/generated_*.py" = ["E501"]
+"src/plaky115_mcp/_docs_index.py" = ["E501"]
+
+[tool.pyright]
+include = ["src", "tests", "scripts"]
+pythonVersion = "3.11"
+typeCheckingMode = "strict"
+reportMissingTypeStubs = false
+reportUnnecessaryIsInstance = false
+executionEnvironments = [
+  { root = "src" },
+  { root = "tests", reportPrivateUsage = false },
+  { root = "scripts" },
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = [
+  "error",
+  # Transport tests spawn real subprocesses and HTTP servers; socket
+  # teardown timing makes ResourceWarning nondeterministic.
+  "ignore::ResourceWarning",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["plaky115", "plaky115_mcp"]
+omit = [
+  "src/plaky115/models/generated.py",
+  "src/plaky115_mcp/tools/raw/generated_*.py",
+  "src/plaky115/_version.py",
+]
+
+[tool.coverage.report]
+fail_under = 95  # plan target reached; history in ADR-0005
+show_missing = true

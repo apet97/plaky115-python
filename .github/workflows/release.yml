@@ -1,0 +1,47 @@
+name: release
+
+# Publishes to PyPI through trusted publishing (OIDC, no stored token).
+# Prerequisite: register this repository + workflow as a (pending) trusted
+# publisher for the "plaky115" project on pypi.org. Publication only runs
+# for version tags, which are pushed manually under separate authorization.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # hatch-vcs derives the version from the tag
+      - uses: astral-sh/setup-uv@v5
+      - name: Build sdist and wheel
+        run: uv build
+      - name: Check metadata
+        run: uvx twine check dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write # trusted publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          print-hash: true
