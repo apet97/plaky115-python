@@ -74,3 +74,17 @@ independent of the percentage.
 Consequences: Raising the floor back to 95 requires covering the listed
 hotspots; the floor never moves down.
 Evidence: coverage report receipts in scripts/verify.py output.
+
+## ADR-0006 — generated timestamps use plain datetime
+Date: 2026-08-13
+Status: accepted
+Context: Live read certification against the real Plaky API failed model
+validation: `createdAt` values arrive timezone-naive
+(`2025-08-26T01:13:22.921856`) while datamodel-code-generator defaulted
+`format: date-time` fields to pydantic AwareDatetime.
+Decision: Generate `datetime.datetime` (accepts naive and aware) for
+date-time fields via --output-datetime-class datetime.
+Consequences: Callers must not assume timezone-aware values; the API's
+naive timestamps are preserved as-is.
+Evidence: live_read.py run on 2026-08-13 (10 validation errors before the
+fix; green after regeneration).

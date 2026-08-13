@@ -4,11 +4,11 @@
 # pyright: reportAssignmentType=false
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from enum import StrEnum
 from typing import Annotated, Any
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, RootModel
+from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 
 class BoardDefaultValues(BaseModel):
@@ -278,7 +278,7 @@ class ItemFileResponse(BaseModel):
         populate_by_name=True,
     )
     created_at: Annotated[
-        AwareDatetime | None,
+        datetime | None,
         Field(
             alias="createdAt",
             description="Represents date and time of the file upload (UTC) in ISO-8601 format.",
@@ -563,7 +563,7 @@ class ReactionDetails(BaseModel):
         populate_by_name=True,
     )
     reacted_at: Annotated[
-        AwareDatetime | None,
+        datetime | None,
         Field(
             alias="reactedAt",
             description="Represents date and time of the comment reaction creation (UTC) in ISO-8601 format.",
@@ -630,7 +630,7 @@ class ReactionResponseNoCode(BaseModel):
         populate_by_name=True,
     )
     created_at: Annotated[
-        AwareDatetime | None,
+        datetime | None,
         Field(
             alias="createdAt",
             description="Represents date and time of the comment reaction creation (UTC) in ISO-8601 format.",
@@ -894,7 +894,7 @@ class CommentResponse(BaseModel):
     )
     content: Annotated[str | None, Field(description="Represents content of the comment.")] = None
     created_at: Annotated[
-        AwareDatetime | None,
+        datetime | None,
         Field(
             alias="createdAt",
             description="Represents date and time of the comment creation (UTC) in ISO-8601 format.",
@@ -927,7 +927,7 @@ class CommentResponse(BaseModel):
         Field(description="Represents replies to the comment."),
     ] = None
     updated_at: Annotated[
-        AwareDatetime | None,
+        datetime | None,
         Field(
             alias="updatedAt",
             description="Represents date and time of the comment update (UTC) in ISO-8601 format.",
@@ -1191,7 +1191,7 @@ class ItemResponse(BaseModel):
         ),
     ] = None
     created_at: Annotated[
-        AwareDatetime | None,
+        datetime | None,
         Field(
             alias="createdAt",
             description="Represents date and time of the item creation (UTC) in ISO-8601 format.",
@@ -1208,7 +1208,7 @@ class ItemResponse(BaseModel):
         bool | None, Field(description="Indicates whether the item is softly deleted.")
     ] = None
     deleted_at: Annotated[
-        AwareDatetime | None,
+        datetime | None,
         Field(
             alias="deletedAt",
             description="Represents date and time of the item soft deletion (UTC) in ISO-8601 format.",

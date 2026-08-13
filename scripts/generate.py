@@ -66,6 +66,10 @@ def generate_models() -> str:
                 "--allow-population-by-field-name",
                 "--disable-timestamp",
                 "--use-double-quotes",
+                # The live API emits timezone-naive ISO timestamps; plain
+                # datetime accepts both naive and aware values (ADR-0006).
+                "--output-datetime-class",
+                "datetime",
                 "--formatters",
                 "ruff-format",
             ],
