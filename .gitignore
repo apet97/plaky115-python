@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+dist/
+build/
+*.egg-info/
+.coverage
+coverage.xml
+.pytest_cache/
+.ruff_cache/
+src/plaky115/_version.py
+
+# local evidence (never commit payloads)
+evidence/
+.env

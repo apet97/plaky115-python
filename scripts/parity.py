@@ -15,6 +15,7 @@ import hashlib
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -68,15 +69,15 @@ def main() -> int:
     check(len(set(op_ids)) == len(ops), "duplicate operationId in expected operations")
 
     overrides = yaml.safe_load((REPO / "contract/operation-overrides.yaml").read_text())
-    over_ops = overrides["operations"]
+    over_ops: dict[str, dict[str, Any]] = overrides["operations"]
     check(len(over_ops) == EXPECTED_OPERATION_COUNT, f"expected 32 overrides, got {len(over_ops)}")
 
-    over_by_id = {}
-    mcp_names = set()
+    over_by_id: dict[str, dict[str, Any]] = {}
+    mcp_names: set[str] = set()
     for key, entry in over_ops.items():
         method, _, path = key.partition(" ")
         check((method, path) in method_paths, f"override key not in expected operations: {key}")
-        oid = entry.get("operationId")
+        oid = str(entry.get("operationId"))
         check(oid in set(op_ids), f"override operationId unknown: {oid}")
         over_by_id[oid] = entry
         sdk = entry.get("sdk", {})
@@ -85,33 +86,52 @@ def main() -> int:
         name = mcp.get("name", "")
         check(name.startswith("plaky_") and len(name) <= 64, f"{oid}: bad mcp name {name!r}")
         check(bool(mcp.get("title")), f"{oid}: missing mcp title")
-        check(mcp.get("scopes") in (["read"], ["write"], ["write", "destructive"]),
-              f"{oid}: unexpected scopes {mcp.get('scopes')}")
+        check(
+            mcp.get("scopes") in (["read"], ["write"], ["write", "destructive"]),
+            f"{oid}: unexpected scopes {mcp.get('scopes')}",
+        )
         annotations = mcp.get("annotations", {})
         for hint in ("readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHint"):
             check(isinstance(annotations.get(hint), bool), f"{oid}: missing annotation {hint}")
-        check(entry.get("response", {}).get("root") in ("page", "object", "array", "void"),
-              f"{oid}: bad response root")
+        check(
+            entry.get("response", {}).get("root") in ("page", "object", "array", "void"),
+            f"{oid}: bad response root",
+        )
         mcp_names.add(name)
     check(len(mcp_names) == EXPECTED_OPERATION_COUNT, "raw MCP tool names are not unique")
     check(set(over_by_id) == set(op_ids), "override operationIds do not match expected inventory")
 
-    destructive = {oid for oid, e in over_by_id.items()
-                   if e["mcp"]["scopes"] == ["write", "destructive"]}
-    check(destructive == {"deleteItem", "deleteItemComment", "deleteItemGroup",
-                          "archiveItemGroup", "deleteItemFile"},
-          f"destructive set mismatch: {sorted(destructive)}")
-    check(over_by_id["getItemFileDownload"]["sensitiveOutput"] is True,
-          "getItemFileDownload must be sensitiveOutput")
+    destructive = {
+        oid for oid, e in over_by_id.items() if e["mcp"]["scopes"] == ["write", "destructive"]
+    }
+    check(
+        destructive
+        == {
+            "deleteItem",
+            "deleteItemComment",
+            "deleteItemGroup",
+            "archiveItemGroup",
+            "deleteItemFile",
+        },
+        f"destructive set mismatch: {sorted(destructive)}",
+    )
+    check(
+        over_by_id["getItemFileDownload"]["sensitiveOutput"] is True,
+        "getItemFileDownload must be sensitiveOutput",
+    )
 
     check(len(CURATED_TOOLS) == 7, "curated tool inventory must have 7 entries")
     check(len(WORKFLOW_IDS) == 11, "workflow inventory must have 11 entries")
-    check(len(READ_WORKFLOW_IDS) == 4 and len(MUTATION_WORKFLOW_IDS) == 7,
-          "workflow read/mutation split mismatch")
+    check(
+        len(READ_WORKFLOW_IDS) == 4 and len(MUTATION_WORKFLOW_IDS) == 7,
+        "workflow read/mutation split mismatch",
+    )
 
     manifest = json.loads((REPO / "contract/source-manifest.json").read_text())
-    check(manifest["sourceCommit"] == "33ae2926aa696f36d9663d44f914d42d9aadc53f",
-          "source manifest commit mismatch")
+    check(
+        manifest["sourceCommit"] == "33ae2926aa696f36d9663d44f914d42d9aadc53f",
+        "source manifest commit mismatch",
+    )
     check(manifest["sourceRelease"] == "v1.0.11", "source manifest release mismatch")
     if SOURCE_CHECKOUT.is_dir():
         for f in manifest["files"]:
@@ -120,8 +140,7 @@ def main() -> int:
                 check(False, f"manifest source file missing: {f['sourcePath']}")
                 continue
             digest = hashlib.sha256(p.read_bytes()).hexdigest()
-            check(digest == f["sourceSha256"],
-                  f"manifest hash drift for {f['sourcePath']}")
+            check(digest == f["sourceSha256"], f"manifest hash drift for {f['sourcePath']}")
     # Verbatim copies must be byte-identical to their targets.
     for f in manifest["files"]:
         if f["translation"] == "verbatim copy" and SOURCE_CHECKOUT.is_dir():
@@ -133,13 +152,15 @@ def main() -> int:
     # canonical operationIds are assigned by the overrides layer, keyed by
     # exact method/path. Here only the method/path inventory must agree.
     upstream = yaml.safe_load((REPO / "contract/upstream.openapi.yaml").read_text())
-    spec_ops = set()
+    spec_ops: set[tuple[str, str]] = set()
     for path, item in upstream["paths"].items():
         for method in ("get", "post", "put", "patch", "delete"):
             if method in item:
                 spec_ops.add((method.upper(), path))
-                check(bool(item[method].get("operationId")),
-                      f"upstream operation missing operationId: {method.upper()} {path}")
+                check(
+                    bool(item[method].get("operationId")),
+                    f"upstream operation missing operationId: {method.upper()} {path}",
+                )
     check(spec_ops == method_paths, "upstream spec operations do not match expected inventory")
 
     if failures:
