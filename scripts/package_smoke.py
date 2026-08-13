@@ -13,6 +13,7 @@ Proves, in fresh virtual environments outside the source tree:
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
