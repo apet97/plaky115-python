@@ -98,6 +98,8 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "src/plaky115/models/generated.py" = ["E501", "I001"]
+"src/plaky115_mcp/tools/raw/generated_*.py" = ["E501"]
+"src/plaky115_mcp/_docs_index.py" = ["E501"]
 
 [tool.pyright]
 include = ["src", "tests", "scripts"]

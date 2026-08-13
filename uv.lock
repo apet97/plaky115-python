@@ -1330,7 +1330,7 @@ wheels = [
 
 [[package]]
 name = "plaky115"
-version = "0.0.0.dev2+g4b5e90d8c.d20260813"
+version = "0.0.0.dev6+g3334d4b43.d20260813"
 source = { editable = "." }
 dependencies = [
     { name = "httpx2" },

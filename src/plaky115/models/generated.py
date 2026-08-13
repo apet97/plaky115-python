@@ -3,10 +3,12 @@
 # Regenerate: uv run python scripts/generate.py
 # pyright: reportAssignmentType=false
 from __future__ import annotations
-from typing import Annotated, Any
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, RootModel
-from enum import StrEnum
+
 from datetime import date
+from enum import StrEnum
+from typing import Annotated, Any
+
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, RootModel
 
 
 class BoardDefaultValues(BaseModel):
