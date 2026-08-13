@@ -87,6 +87,7 @@ def default_serialize(value: Any) -> str:
 
 
 PageFetcher = Callable[[int, int], Awaitable[dict[str, Any]]]
+SyncPageFetcher = Callable[[int, int], dict[str, Any]]
 
 
 async def read_paged_chunk(
@@ -134,6 +135,87 @@ async def read_paged_chunk(
                 if len(data) == 0:
                     # A single item larger than the byte budget can never be
                     # returned; skipping it silently would corrupt the export.
+                    raise PlakyOutputLimitError("bytes", max_bytes)
+                return BoundedChunk(
+                    data=tuple(data),
+                    scanned=len(data),
+                    returned=len(data),
+                    bytes=total_bytes,
+                    complete=False,
+                    truncated=True,
+                    next_cursor=PageCursor(page=page, index=index),
+                )
+            data.append(item)
+            total_bytes += item_bytes
+            index += 1
+
+        if has_more and (len(data) >= max_items or total_bytes >= max_bytes):
+            return BoundedChunk(
+                data=tuple(data),
+                scanned=len(data),
+                returned=len(data),
+                bytes=total_bytes,
+                complete=False,
+                truncated=True,
+                next_cursor=PageCursor(page=page + 1, index=0),
+            )
+        if not has_more:
+            return BoundedChunk(
+                data=tuple(data),
+                scanned=len(data),
+                returned=len(data),
+                bytes=total_bytes,
+                complete=True,
+                truncated=False,
+                next_cursor=None,
+            )
+        page += 1
+        index = 0
+
+
+def sync_read_paged_chunk(
+    fetcher: SyncPageFetcher,
+    *,
+    page_size: int = 100,
+    max_items: int = DEFAULT_CHUNK_MAX_ITEMS,
+    max_bytes: int = DEFAULT_CHUNK_MAX_BYTES,
+    cursor: PageCursor | None = None,
+    serialize: Callable[[Any], str] = default_serialize,
+) -> BoundedChunk[Any]:
+    """Sync twin of read_paged_chunk with identical semantics."""
+    _validate_positive(page_size, "pageSize")
+    _validate_non_negative(max_items, "maxItems")
+    _validate_non_negative(max_bytes, "maxBytes")
+    if max_items == 0:
+        raise PlakyOutputLimitError("items", 0)
+
+    page, index = normalize_cursor(cursor)
+    data: list[Any] = []
+    total_bytes = 0
+
+    while True:
+        raw_page = fetcher(page, page_size)
+        checked = assert_paged_result(raw_page, "boundedChunk")
+        items: list[Any] = checked["data"]
+        has_more: bool = checked["hasMore"]
+        if index > len(items):
+            raise PlakyResponseContractError("boundedChunk", "/data")
+
+        while index < len(items):
+            if len(data) >= max_items:
+                return BoundedChunk(
+                    data=tuple(data),
+                    scanned=len(data),
+                    returned=len(data),
+                    bytes=total_bytes,
+                    complete=False,
+                    truncated=True,
+                    next_cursor=PageCursor(page=page, index=index),
+                )
+            item = items[index]
+            item_bytes = utf8_byte_length(serialize(item))
+            if total_bytes + item_bytes > max_bytes:
+                if len(data) == 0:
                     raise PlakyOutputLimitError("bytes", max_bytes)
                 return BoundedChunk(
                     data=tuple(data),

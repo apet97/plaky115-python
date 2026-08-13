@@ -65,7 +65,11 @@ def async_invokers() -> dict[str, AsyncInvoker]:
             space_id=SPACE, board_id=BOARD, body=BODIES["createItem"]
         ),
         "listSubitems": lambda c: c.items.list_subitems(
-            space_id=SPACE, board_id=BOARD, item_id=ITEM, page=2, page_size=5,
+            space_id=SPACE,
+            board_id=BOARD,
+            item_id=ITEM,
+            page=2,
+            page_size=5,
             expand=["space", "board"],
         ),
         "getItem": lambda c: c.items.get(
@@ -137,9 +141,7 @@ def async_invokers() -> dict[str, AsyncInvoker]:
             file_name="parity.txt",
             content_type="text/plain",
         ),
-        "listItemFiles": lambda c: c.item_files.list(
-            space_id=SPACE, board_id=BOARD, item_id=ITEM
-        ),
+        "listItemFiles": lambda c: c.item_files.list(space_id=SPACE, board_id=BOARD, item_id=ITEM),
         "getItemFile": lambda c: c.item_files.get(
             space_id=SPACE, board_id=BOARD, item_id=ITEM, item_file_id=FILE_ID
         ),
@@ -162,7 +164,7 @@ def async_invokers() -> dict[str, AsyncInvoker]:
 def sync_invokers() -> dict[str, SyncInvoker]:
     # Sync methods have identical names and signatures; reuse the async table
     # since each lambda only calls resource methods present on both clients.
-    return {name: fn for name, fn in async_invokers().items()}  # type: ignore[misc]
+    return dict(async_invokers().items())  # type: ignore[arg-type]
 
 
 EXPECTED_QUERY: dict[str, str] = {
@@ -170,8 +172,7 @@ EXPECTED_QUERY: dict[str, str] = {
     "getSpace": "expand=board",
     "listBoards": "page=2&pageSize=5",
     "listItems": (
-        "page=2&pageSize=5&expand=space%2Cboard&boardViewId=5&parentId=9"
-        "&subitemsBehaviour=INCLUDE"
+        "page=2&pageSize=5&expand=space%2Cboard&boardViewId=5&parentId=9&subitemsBehaviour=INCLUDE"
     ),
     "listSubitems": "page=2&pageSize=5&expand=space%2Cboard",
     "getItem": "expand=space%2Cboard",
@@ -270,12 +271,8 @@ def test_sync_async_resource_parity() -> None:
         ("ItemFilesResource", "AsyncItemFilesResource"),
     ]
     for sync_name, async_name in pairs:
-        sync_methods = {
-            m for m in dir(getattr(resources, sync_name)) if not m.startswith("_")
-        }
-        async_methods = {
-            m for m in dir(getattr(resources, async_name)) if not m.startswith("_")
-        }
+        sync_methods = {m for m in dir(getattr(resources, sync_name)) if not m.startswith("_")}
+        async_methods = {m for m in dir(getattr(resources, async_name)) if not m.startswith("_")}
         assert sync_methods == async_methods, sync_name
 
 
