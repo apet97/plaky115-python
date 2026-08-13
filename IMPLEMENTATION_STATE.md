@@ -10,6 +10,7 @@
 - Coverage: 95.13% branch coverage, fail_under=95 enforced (ADR-0005 superseded); resolvers return typed models
 - Transport depth: progress + cancellation verified on in-memory, streamable HTTP, and stdio (tests/mcp/test_progress_cancellation.py)
 - Release automation: .github/workflows/release.yml (trusted publishing on v* tags)
-- Next exact action: user registers the PyPI trusted publisher and authorizes the version tag; then push tag
+- RELEASED: plaky115 1.0.0 on PyPI via trusted publishing (run 31736901309); install smoke passed
+- Next exact action: none — port complete; future versions repeat the tag flow
 - Uncommitted files: all (initial)
 - External blockers: live write authorization; remote/tag/publication authorization (see BLOCKERS.md)

@@ -24,7 +24,7 @@ groups (the archived probe group deleted cleanly). The run surfaced and
 fixed a real defect: MCP structured content carried non-JSON-serializable
 datetimes (fixed via model_dump(mode="json") across MCP surfaces).
 
-## BLOCKED_EXTERNAL — tags and publication (remote RESOLVED)
+## RESOLVED — tags and publication (was BLOCKED_EXTERNAL)
 Date: 2026-08-13 (updated same day)
 Remote: RESOLVED — pushed to https://github.com/apet97/plaky115-python (main).
 Remaining: tag creation and PyPI publication still require separate
@@ -35,3 +35,11 @@ operator is not logged into pypi.org in the managed browser, so the
 pending-trusted-publisher registration (project plaky115, owner apet97,
 repo plaky115-python, workflow release.yml, environment pypi) and the
 version tag push are user actions.
+
+Publication receipt (2026-08-13): registry=pypi.org, project=plaky115,
+version=1.0.0, tag=v1.0.0 on commit c03f0d3, workflow run 31736901309,
+dist artifact sha256:7dacb780ecc9ad9f41138421cd3ed8f8e23cd0178e464a03c7b1ea7f5ae07f61,
+trusted publishing (OIDC) with attestations. Verified installable:
+`pip install "plaky115[mcp]==1.0.0"` imports SDK + MCP and the
+plaky115-mcp CLI runs. User authorized in-session ("do ur thing" after
+the v1.0.0 proposal).
