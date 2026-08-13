@@ -62,7 +62,8 @@ Evidence: scripts/package_smoke.py; verify receipts.
 
 ## ADR-0005 — interim coverage floor of 90%
 Date: 2026-08-13
-Status: accepted
+Status: superseded (2026-08-13): the suite reached 95.1% branch coverage and
+the enforced floor is 95 again.
 Context: The plan targets at least 95% branch coverage for handwritten
 runtime code. After the sync-parity, curated-tool, and branch-coverage test
 batches the suite reaches 90% overall; the remaining gap is spread across

@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from plaky115.errors import PlakyAmbiguousMatchError, PlakyNotFoundError
 from plaky115.ids import INT64_MAX
+from plaky115.models import Board, Item, ItemFile, ItemGroup, Space, Team, User
 from plaky115.resources._common import RequestOverrides
 
 if TYPE_CHECKING:
@@ -153,7 +154,7 @@ def _pick(items: Sequence[Any], match: _RefMatch, label: str) -> Any:
 
 async def async_resolve_space(
     client: AsyncPlakyClient, ref: EntityRef, options: RequestOverrides | None = None
-) -> Any:
+) -> Space:
     match = _as_id(ref)
     if match.id is not None:
         try:
@@ -172,7 +173,7 @@ async def async_resolve_space_and_board(
     space: EntityRef,
     board: EntityRef,
     options: RequestOverrides | None = None,
-) -> tuple[Any, Any]:
+) -> tuple[Space, Board]:
     resolved_space = await async_resolve_space(client, space, options)
     space_id = _canonical_id(_entity_value(resolved_space, "id"))
     match = _as_id(board)
@@ -194,7 +195,7 @@ async def async_resolve_board(
     space: EntityRef,
     board: EntityRef,
     options: RequestOverrides | None = None,
-) -> Any:
+) -> Board:
     _, resolved = await async_resolve_space_and_board(
         client, space=space, board=board, options=options
     )
@@ -203,14 +204,14 @@ async def async_resolve_board(
 
 async def async_resolve_user(
     client: AsyncPlakyClient, ref: EntityRef, options: RequestOverrides | None = None
-) -> Any:
+) -> User:
     # There is no user GET endpoint; even exact IDs resolve from the list.
     return _pick(await client.users.list_all(options=options), _as_id(ref), "user")
 
 
 async def async_resolve_team(
     client: AsyncPlakyClient, ref: EntityRef, options: RequestOverrides | None = None
-) -> Any:
+) -> Team:
     match = _as_id(ref)
     if match.id is not None:
         try:
@@ -230,7 +231,7 @@ async def async_resolve_item(
     board: EntityRef,
     item: EntityRef,
     options: RequestOverrides | None = None,
-) -> Any:
+) -> Item:
     resolved_space, resolved_board = await async_resolve_space_and_board(
         client, space=space, board=board, options=options
     )
@@ -249,7 +250,7 @@ async def async_resolve_items_in_board(
     board_id: int | str,
     items: Sequence[EntityRef],
     options: RequestOverrides | None = None,
-) -> list[Any]:
+) -> list[Item]:
     refs = [_as_id(item) for item in items]
     if refs and all(ref.id is not None for ref in refs):
         # All exact IDs: concurrent direct GETs, order preserved.
@@ -276,7 +277,7 @@ async def async_resolve_item_group_in_board(
     board_id: int | str,
     item_group: EntityRef,
     options: RequestOverrides | None = None,
-) -> Any:
+) -> ItemGroup:
     match = _as_id(item_group)
     if match.id is not None:
         try:
@@ -302,7 +303,7 @@ async def async_resolve_item_file_on_item(
     item_id: int | str,
     item_file: EntityRef,
     options: RequestOverrides | None = None,
-) -> Any:
+) -> ItemFile:
     match = _as_id(item_file)
     if match.id is not None:
         try:
@@ -331,7 +332,7 @@ async def async_resolve_item_file_on_item(
 
 def resolve_space(
     client: PlakyClient, ref: EntityRef, options: RequestOverrides | None = None
-) -> Any:
+) -> Space:
     match = _as_id(ref)
     if match.id is not None:
         try:
@@ -350,7 +351,7 @@ def resolve_space_and_board(
     space: EntityRef,
     board: EntityRef,
     options: RequestOverrides | None = None,
-) -> tuple[Any, Any]:
+) -> tuple[Space, Board]:
     resolved_space = resolve_space(client, space, options)
     space_id = _canonical_id(_entity_value(resolved_space, "id"))
     match = _as_id(board)
@@ -372,19 +373,19 @@ def resolve_board(
     space: EntityRef,
     board: EntityRef,
     options: RequestOverrides | None = None,
-) -> Any:
+) -> Board:
     return resolve_space_and_board(client, space=space, board=board, options=options)[1]
 
 
 def resolve_user(
     client: PlakyClient, ref: EntityRef, options: RequestOverrides | None = None
-) -> Any:
+) -> User:
     return _pick(client.users.list_all(options=options), _as_id(ref), "user")
 
 
 def resolve_team(
     client: PlakyClient, ref: EntityRef, options: RequestOverrides | None = None
-) -> Any:
+) -> Team:
     match = _as_id(ref)
     if match.id is not None:
         try:
@@ -404,7 +405,7 @@ def resolve_item(
     board: EntityRef,
     item: EntityRef,
     options: RequestOverrides | None = None,
-) -> Any:
+) -> Item:
     resolved_space, resolved_board = resolve_space_and_board(
         client, space=space, board=board, options=options
     )
@@ -422,10 +423,10 @@ def resolve_items_in_board(
     board_id: int | str,
     items: Sequence[EntityRef],
     options: RequestOverrides | None = None,
-) -> list[Any]:
+) -> list[Item]:
     refs = [_as_id(item) for item in items]
     if refs and all(ref.id is not None for ref in refs):
-        out: list[Any] = []
+        out: list[Item] = []
         for ref in refs:
             item_id = cast(str, ref.id)
             try:
@@ -449,7 +450,7 @@ def resolve_item_group_in_board(
     board_id: int | str,
     item_group: EntityRef,
     options: RequestOverrides | None = None,
-) -> Any:
+) -> ItemGroup:
     match = _as_id(item_group)
     if match.id is not None:
         try:
@@ -473,7 +474,7 @@ def resolve_item_file_on_item(
     item_id: int | str,
     item_file: EntityRef,
     options: RequestOverrides | None = None,
-) -> Any:
+) -> ItemFile:
     match = _as_id(item_file)
     if match.id is not None:
         try:

@@ -133,5 +133,5 @@ omit = [
 ]
 
 [tool.coverage.report]
-fail_under = 90  # interim floor; 95 target tracked in ADR-0005
+fail_under = 95  # plan target reached; history in ADR-0005
 show_missing = true
