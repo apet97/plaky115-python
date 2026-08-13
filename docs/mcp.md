@@ -34,8 +34,12 @@ plaky115-mcp --transport streamable-http --host 127.0.0.1 --port 8000
 - Stateless (`stateless_http=True`, `json_response=False`); request-scoped
   SSE responses carry progress and modern cancellation.
 - 36 MiB raw request cap (a valid 25 MiB upload is ~34.9 MiB of base64).
-- DNS-rebinding protection on; loopback hosts allowed by default;
-  non-loopback binding requires explicit `--allowed-origin` values.
+- DNS-rebinding protection on; loopback hosts allowed by default.
+  Non-loopback binding requires explicit `--allowed-host` (the public
+  `host[:port]` clients send in the Host header) and `--allowed-origin`
+  values; the bind address is never used as the Host allowlist. On a
+  loopback bind, extra `--allowed-host` values are additive (for tunnels
+  that forward the public Host header).
 - `GET /healthz` returns only `{"status": "ok", "version": ...}`.
 - v1 is single-tenant: deploy private-network or behind an authenticated
   reverse proxy. Never reuse the Plaky key as MCP authentication; the key

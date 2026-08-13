@@ -48,6 +48,7 @@ EXPOSE 8000
 # The key arrives via the platform's secret store, never baked in.
 CMD ["plaky115-mcp", "--transport", "streamable-http", \
      "--host", "0.0.0.0", "--port", "8000", \
+     "--allowed-host", "your-mcp-host.example", \
      "--allowed-origin", "https://your-mcp-host.example"]
 ```
 

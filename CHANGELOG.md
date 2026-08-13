@@ -1,8 +1,49 @@
 # Changelog
 
-## Unreleased
+## v1.1.0
 
-Fixes from the adversarial review of PR #2:
+Fixes from the adversarial review of the MCP server, scripts, CI, and
+test suite:
+
+- A live mutation that fails after network dispatch now returns its
+  attempt receipt: `attempted=true`, `mayHaveCommitted=true`, and the
+  real phase. Before this fix, the error envelope reported
+  `attempted=false` and `phase=preflight` for a write that may have
+  committed. Both `plaky_execute_mutation_workflow` and the compat
+  dispatcher are fixed.
+- `export.items` rejects unknown `csvSafety` values with a validation
+  error. Before this fix, a typo such as `"Spreadsheet"` silently
+  disabled CSV formula-injection protection.
+- Structured tool output is redacted with the same `plk_` rules as text
+  output.
+- Bulk `items.updateFields` output carries a `dryRun` marker, and a
+  dry-run reports "dry-run validated" instead of "0/N completed".
+- New repeatable `--allowed-host` flag for Streamable HTTP. Non-loopback
+  binding requires explicit `--allowed-host` and `--allowed-origin`
+  values; the Host allowlist is no longer derived from the bind address
+  (binding `0.0.0.0` used to reject every real Host header).
+- `--log-level` validates its value and exits cleanly instead of raising
+  a traceback.
+- `scripts/parity.py` reports "manifest hashes SKIPPED" when the pinned
+  source checkout is unavailable (`PLAKY115_SOURCE_CHECKOUT` overrides
+  the path). Before this fix, it printed "verified" without checking.
+- `scripts/generate.py --check` fails on orphan `generated_*.py` modules
+  that a fresh run would not produce.
+- `scripts/package_smoke.py` asserts the stdio server exits with code 0.
+- `scripts/verify.py` deletes stale `dist/` artifacts before the build
+  gate, and the release-online dependency audit runs `pip-audit` against
+  the exported lockfile.
+- The release workflow verifies before it publishes: the tag must point
+  at a commit on `main`, the built version must equal the tag, the full
+  gate suite (with the online dependency audit) must pass, and the
+  publish job consumes the exact verified artifacts. All actions are
+  pinned to commit SHAs. The tag trigger is narrowed to `v[0-9]*`.
+- Regression tests pin the retry backoff to the server `Retry-After`
+  value, the exact timeout error type over Streamable HTTP, zero writes
+  during mutation planning, and redaction of key-bearing transport
+  exception messages.
+
+Fixes from the adversarial review of PR #2 (SDK core):
 
 - The package imports without the build-generated `plaky115._version`
   module; `__version__` falls back to `0.0.0.dev0`.

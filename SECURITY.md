@@ -16,7 +16,8 @@ repository, not through public issues.
   `PLAKY115_API_KEY_AUTH` environment variables.
 - Keys are sent only in the `X-API-Key` header, only to the configured
   HTTPS origin (loopback HTTP is permitted for local tests).
-- `plk_`-style values are redacted recursively from error messages and logs.
+- `plk_`-style values are redacted recursively from error messages, logs,
+  and structured tool output.
 - Signed file-download URLs are bearer capabilities: the SDK and MCP server
   never log, persist, or follow them, and never copy them into summaries.
 
