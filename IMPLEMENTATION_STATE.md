@@ -7,6 +7,7 @@
 - Last green focused command: scripts/verify.py --offline (all gates); scripts/live_read.py (ACCEPT x4)
 - Last green offline verification: (none yet)
 - Current failures: (none)
-- Next exact action: coverage 90->95; transport progress/cancellation depth; tag+PyPI trusted publishing under separate authorization
+- Coverage: 95.13% branch coverage, fail_under=95 enforced (ADR-0005 superseded); resolvers return typed models
+- Next exact action: transport progress/cancellation depth tests; tag+PyPI trusted publishing under separate authorization
 - Uncommitted files: all (initial)
 - External blockers: live write authorization; remote/tag/publication authorization (see BLOCKERS.md)
