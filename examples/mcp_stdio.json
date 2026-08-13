@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "plaky115": {
+      "command": "plaky115-mcp",
+      "args": ["--transport", "stdio", "--mode", "curated", "--scope", "read"],
+      "env": {
+        "PLAKY115_API_KEY": "${PLAKY115_API_KEY}"
+      }
+    }
+  }
+}
