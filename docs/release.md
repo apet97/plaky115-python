@@ -22,6 +22,17 @@ Environment variables and credentials are interlocks, not authorization.
 
 ## Publication receipts
 
+- v1.2.0 (2026-08-14): registry=pypi.org, project=plaky115,
+  version=1.2.0, tag=v1.2.0 on commit 2c116f2, workflow run 31759925289,
+  wheel sha256
+  `6b9e2aa06239aa96c2eb7e30b23bc773e3dbbc0a57603da002129769aa5f4d1d`,
+  sdist sha256
+  `32a00fa668465e3be70bd3d3cb846f823aba26132c7be1d1d592835ba4f17d76`,
+  trusted publishing (OIDC) with attestations. Verified installable in a
+  scratch venv: `pip install "plaky115[mcp]==1.2.0"`; an in-memory MCP
+  client lists `plaky_board_view` with `_meta.ui.resourceUri`, reads
+  `ui://plaky115/board-view.html` as `text/html;profile=mcp-app`, and
+  lists 49 resources including `plaky115://skills/board-workflow`.
 - v1.1.0 (2026-08-14): registry=pypi.org, project=plaky115,
   version=1.1.0, tag=v1.1.0 on commit 683d7e2, workflow run 31757232499,
   wheel sha256
