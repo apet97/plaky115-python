@@ -9,6 +9,7 @@ from plaky115._version import __version__
 from plaky115.async_client import AsyncPlakyClient
 from plaky115_mcp.apps import BOARD_VIEW_URI, board_view_html
 from plaky115_mcp.config import SERVER_INSTRUCTIONS, ServerSettings
+from plaky115_mcp.doc_resources import build_doc_resources
 from plaky115_mcp.registry import mounts, register_tools
 from plaky115_mcp.tools.curated import build_curated_tools
 from plaky115_mcp.tools.raw import build_raw_tools
@@ -53,4 +54,6 @@ def build_server(
         scopes=settings.scopes,
         compat=settings.enable_compat_workflow,
     )
+    for resource in build_doc_resources():
+        server.add_resource(resource)
     return server

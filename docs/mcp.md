@@ -93,6 +93,23 @@ explicit in-widget confirmation. The server-side scope gates are
 unchanged: without the `write` scope those tools do not mount, so a
 widget can never widen access.
 
+## Doc resources (skills over MCP)
+
+The server serves its know-how as read-only MCP resources, so hosts can
+load documentation without tool calls:
+
+- `plaky115://docs/{id}` — one markdown resource per docs-index entry
+  (operations, workflows, guides). The same content backs
+  `plaky_search_docs`.
+- `plaky115://skills/board-workflow` — the curated "How to work a Plaky
+  board" guide: discovery, reads, dry-run mutation planning, rate-limit
+  etiquette, and ID conventions.
+
+Hosts discover both through the standard `resources/list` and
+`resources/read` requests. The Skills-over-MCP extension (SEP-2640) is
+not final; when it stabilizes, these resources can adopt its metadata
+without changing URIs.
+
 ## Legacy hosts
 
 Legacy (2025-11-25) stdio and stateless HTTP support initialize/list/call

@@ -13,6 +13,7 @@ from mcp.types import ReadResourceResult, TextResourceContents
 from plaky115.async_client import AsyncPlakyClient
 from plaky115_mcp.apps import BOARD_VIEW_URI, board_view_html
 from plaky115_mcp.config import ServerSettings
+from plaky115_mcp.doc_resources import SKILL_URI, build_doc_resources
 from plaky115_mcp.server import build_server
 from plaky115_mcp.tools.curated.board_view import MAX_ITEMS, _shape_value
 
@@ -255,6 +256,49 @@ async def test_template_resource_served_and_self_contained() -> None:
     assert not re.search(r"""(?:src|href)\s*=\s*["']https?://""", html)
     assert "fetch(" not in html and "XMLHttpRequest" not in html
     assert html.count("<script>") == 1 and html.count("</script>") == 1
+
+
+async def test_doc_resources_listed_and_readable() -> None:
+    server = build_server(settings(), sdk_client())
+    async with Client(server) as client:
+        resources = (await client.list_resources()).resources
+        uris = {str(r.uri) for r in resources}
+        assert SKILL_URI in uris
+        assert "plaky115://docs/getBoard" in uris
+        assert len(resources) == len(build_doc_resources()) + 1  # + the ui:// template
+
+        doc = text_content(await client.read_resource("plaky115://docs/getBoard"))
+        assert doc.mime_type == "text/markdown"
+        assert "plaky_get_board" in doc.text and "client.boards.get" in doc.text
+
+        skill = text_content(await client.read_resource(SKILL_URI))
+        assert skill.mime_type == "text/markdown"
+        for tool_name in (
+            "plaky_workspace_context",
+            "plaky_find",
+            "plaky_execute_read_workflow",
+            "plaky_plan_mutation",
+            "plaky_execute_mutation_workflow",
+            "plaky_board_view",
+        ):
+            assert tool_name in skill.text, tool_name
+        assert "dryRun" in skill.text and "200 requests" in skill.text
+
+
+async def test_generated_mode_serves_docs_but_no_app() -> None:
+    server = build_server(settings(mode="generated"), sdk_client())
+    async with Client(server) as client:
+        tools = {t.name for t in (await client.list_tools()).tools}
+        assert "plaky_board_view" not in tools
+        uris = {str(r.uri) for r in (await client.list_resources()).resources}
+        assert BOARD_VIEW_URI not in uris
+        assert SKILL_URI in uris
+
+
+def test_doc_resource_texts_are_bounded() -> None:
+    for resource in build_doc_resources():
+        assert resource.text.strip()
+        assert len(resource.text.encode("utf-8")) < 64 * 1024
 
 
 async def test_structured_result_fits_wire_cap() -> None:
