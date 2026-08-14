@@ -260,10 +260,14 @@ def test_cli_units() -> None:
         del os.environ["PLAKY115_API_KEY"]
 
 
-def test_cli_http_guard_requires_origin() -> None:
+def test_cli_http_guard_requires_allowlists() -> None:
     from plaky115_mcp.cli import _run_http  # pyright: ignore[reportPrivateUsage]
 
-    args = argparse.Namespace(host="0.0.0.0", port=8000, allowed_origin=None)
+    args = argparse.Namespace(host="0.0.0.0", port=8000, allowed_host=None, allowed_origin=None)
+    assert _run_http(object(), args) == 2
+    args = argparse.Namespace(
+        host="0.0.0.0", port=8000, allowed_host=["mcp.example"], allowed_origin=None
+    )
     assert _run_http(object(), args) == 2
 
 

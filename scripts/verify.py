@@ -93,13 +93,28 @@ def main() -> int:
         requirements = Path(tempfile.gettempdir()) / "plaky115-requirements-audit.txt"
         run_gate(
             "dependency-export",
-            ["uv", "export", "--frozen", "--all-extras", "--no-emit-project",
-             "-o", str(requirements)],
+            [
+                "uv",
+                "export",
+                "--frozen",
+                "--all-extras",
+                "--no-emit-project",
+                "-o",
+                str(requirements),
+            ],
         )
         run_gate(
             "dependency-audit",
-            [python, "-m", "pip_audit", "--strict", "--disable-pip",
-             "--require-hashes", "-r", str(requirements)],
+            [
+                python,
+                "-m",
+                "pip_audit",
+                "--strict",
+                "--disable-pip",
+                "--require-hashes",
+                "-r",
+                str(requirements),
+            ],
         )
         requirements.unlink(missing_ok=True)
     else:

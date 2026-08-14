@@ -335,8 +335,11 @@ async def test_bulk_update_dry_run_is_labeled() -> None:
         assert planned.is_error is False
         assert planned.structured_content["dryRun"] is True
         assert planned.structured_content["receipts"][0]["status"] == "planned"
-        text = planned.content[0].text
-        assert "dry-run" in text, text
+        from mcp.types import TextContent
+
+        first = planned.content[0]
+        assert isinstance(first, TextContent)
+        assert "dry-run" in first.text, first.text
 
 
 def make_failing_write_server(**overrides: Any):
@@ -360,9 +363,7 @@ def make_failing_write_server(**overrides: Any):
     return build_server(ServerSettings(**defaults), sdk)
 
 
-@pytest.mark.parametrize(
-    "tool", ["plaky_execute_mutation_workflow", "plaky_execute_workflow"]
-)
+@pytest.mark.parametrize("tool", ["plaky_execute_mutation_workflow", "plaky_execute_workflow"])
 async def test_failed_live_mutation_reports_ambiguous_receipt(tool: str) -> None:
     """A failure after dispatch must report attempted/mayHaveCommitted, not preflight."""
     async with Client(make_failing_write_server()) as client:

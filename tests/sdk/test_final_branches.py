@@ -92,6 +92,8 @@ def test_cli_non_loopback_with_origin(monkeypatch: pytest.MonkeyPatch) -> None:
                 "streamable-http",
                 "--host",
                 "0.0.0.0",
+                "--allowed-host",
+                "mcp.example",
                 "--allowed-origin",
                 "https://mcp.example",
             ]

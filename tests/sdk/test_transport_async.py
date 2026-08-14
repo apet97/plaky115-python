@@ -215,12 +215,13 @@ async def test_get_retries_on_429_and_5xx() -> None:
 
 async def test_retry_after_header_reaches_backoff(monkeypatch: pytest.MonkeyPatch) -> None:
     """The server's Retry-After value must drive the retry delay (async)."""
-    seen: list[tuple[Any, int]] = []
-    monkeypatch.setattr(
-        transport_module,
-        "retry_delay_ms",
-        lambda retry_after, attempt: seen.append((retry_after, attempt)) or 0.0,
-    )
+    seen: list[tuple[str | None, int]] = []
+
+    def record(retry_after: str | None, attempt: int) -> float:
+        seen.append((retry_after, attempt))
+        return 0.0
+
+    monkeypatch.setattr(transport_module, "retry_delay_ms", record)
 
     def handler(request: httpx2.Request) -> httpx2.Response:
         if not seen:
@@ -239,12 +240,13 @@ def test_retry_after_header_reaches_backoff_sync(monkeypatch: pytest.MonkeyPatch
     import plaky115.runtime.transport as sync_transport_module
     from plaky115.http import request
 
-    seen: list[tuple[Any, int]] = []
-    monkeypatch.setattr(
-        sync_transport_module,
-        "retry_delay_ms",
-        lambda retry_after, attempt: seen.append((retry_after, attempt)) or 0.0,
-    )
+    seen: list[tuple[str | None, int]] = []
+
+    def record(retry_after: str | None, attempt: int) -> float:
+        seen.append((retry_after, attempt))
+        return 0.0
+
+    monkeypatch.setattr(sync_transport_module, "retry_delay_ms", record)
 
     def handler(request_in: httpx2.Request) -> httpx2.Response:
         if not seen:

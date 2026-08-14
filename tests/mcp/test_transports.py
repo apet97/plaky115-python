@@ -230,9 +230,7 @@ def test_http_allowlists_never_derive_from_bind_address() -> None:
     assert origins == []
     # Non-loopback: exactly the explicit allowlists; the bind address is
     # not a valid Host expectation.
-    hosts, origins = http_allowlists(
-        "0.0.0.0", ["svc.workers.dev"], ["https://claude.ai"]
-    )
+    hosts, origins = http_allowlists("0.0.0.0", ["svc.workers.dev"], ["https://claude.ai"])
     assert hosts == ["svc.workers.dev"]
     assert "0.0.0.0:*" not in hosts
     assert origins == ["https://claude.ai"]

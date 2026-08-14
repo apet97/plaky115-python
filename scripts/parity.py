@@ -24,9 +24,7 @@ import yaml
 
 REPO = Path(__file__).resolve().parent.parent
 SOURCE_CHECKOUT = Path(
-    os.environ.get(
-        "PLAKY115_SOURCE_CHECKOUT", "/Users/15x/Downloads/WORKING/addons-me/plaky115"
-    )
+    os.environ.get("PLAKY115_SOURCE_CHECKOUT", "/Users/15x/Downloads/WORKING/addons-me/plaky115")
 )
 
 EXPECTED_OPERATION_COUNT = 32

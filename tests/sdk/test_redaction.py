@@ -72,9 +72,11 @@ def test_key_bearing_transport_exception_never_leaks() -> None:
         timeout=5.0,
         max_retries=0,
     )
-    with httpx2.Client(transport=httpx2.MockTransport(handler)) as client:
-        with pytest.raises(PlakyConnectionError) as info:
-            request(client, RequestSpec(method="GET", path="/x"), options)
+    with (
+        httpx2.Client(transport=httpx2.MockTransport(handler)) as client,
+        pytest.raises(PlakyConnectionError) as info,
+    ):
+        request(client, RequestSpec(method="GET", path="/x"), options)
     assert "plk_live_secret" not in str(info.value)
     summary = mutation_error_summary(info.value)
     assert "plk_live_secret" not in summary.message

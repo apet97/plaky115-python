@@ -160,9 +160,7 @@ def http_allowlists(
     # explicit host/origin allowlists: clients send the public hostname in
     # Host, not the bind address.
     if not allowed_hosts_arg:
-        raise ValueError(
-            "plaky115-mcp: non-loopback binding requires at least one --allowed-host"
-        )
+        raise ValueError("plaky115-mcp: non-loopback binding requires at least one --allowed-host")
     if not allowed_origins_arg:
         raise ValueError(
             "plaky115-mcp: non-loopback binding requires at least one --allowed-origin"
