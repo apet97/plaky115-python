@@ -22,6 +22,14 @@ Environment variables and credentials are interlocks, not authorization.
 
 ## Publication receipts
 
+- v1.2.1 (2026-08-14): registry=pypi.org, project=plaky115,
+  version=1.2.1, tag=v1.2.1 on commit 49c1113, workflow run 31764762761,
+  wheel sha256
+  `fb8e96eb67c4d30745205a879606df7eed6eed79e2c6f582bfb1b747664c8397`,
+  trusted publishing (OIDC) with attestations. Host-compat fix: tool
+  results mirror structured payloads into the text block for text-only
+  hosts (claude.ai custom connectors). Deployed to plaky115-mcp-cloud
+  staging and live-verified on claude.ai the same day.
 - v1.2.0 (2026-08-14): registry=pypi.org, project=plaky115,
   version=1.2.0, tag=v1.2.0 on commit 2c116f2, workflow run 31759925289,
   wheel sha256
