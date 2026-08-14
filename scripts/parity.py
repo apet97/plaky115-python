@@ -33,6 +33,7 @@ CURATED_TOOLS = [
     "plaky_search_docs",
     "plaky_workspace_context",
     "plaky_find",
+    "plaky_board_view",
     "plaky_plan_mutation",
     "plaky_execute_workflow",
     "plaky_execute_read_workflow",
@@ -127,7 +128,7 @@ def main() -> int:
         "getItemFileDownload must be sensitiveOutput",
     )
 
-    check(len(CURATED_TOOLS) == 7, "curated tool inventory must have 7 entries")
+    check(len(CURATED_TOOLS) == 8, "curated tool inventory must have 8 entries")
     check(len(WORKFLOW_IDS) == 11, "workflow inventory must have 11 entries")
     check(
         len(READ_WORKFLOW_IDS) == 4 and len(MUTATION_WORKFLOW_IDS) == 7,
@@ -184,7 +185,7 @@ def main() -> int:
         else "manifest hashes SKIPPED (source checkout unavailable; "
         "set PLAKY115_SOURCE_CHECKOUT to verify provenance)"
     )
-    print(f"PARITY OK: 32 operations, 7 curated tools, 11 workflows, {hashes}")
+    print(f"PARITY OK: 32 operations, 8 curated tools, 11 workflows, {hashes}")
     return 0
 
 

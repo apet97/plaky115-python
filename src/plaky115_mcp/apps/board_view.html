@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plaky board</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1a1d21;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --row-hover: #f3f4f6;
+    --header-bg: #f9fafb;
+    --accent: #2563eb;
+    color-scheme: light;
+  }
+  [data-theme="dark"] {
+    --bg: #16181c;
+    --fg: #e7e9ec;
+    --muted: #9aa2ad;
+    --line: #2e3238;
+    --row-hover: #22252b;
+    --header-bg: #1c1f24;
+    --accent: #60a5fa;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line);
+    flex-wrap: wrap;
+  }
+  .bar h1 { font-size: 14px; font-weight: 600; margin: 0; }
+  .bar .count { color: var(--muted); font-size: 12px; }
+  .bar input {
+    margin-left: auto;
+    padding: 5px 9px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--fg);
+    font-size: 12px;
+    width: 180px;
+  }
+  .bar button {
+    padding: 5px 11px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--fg);
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .bar button:hover { border-color: var(--accent); color: var(--accent); }
+  .bar button:disabled { opacity: 0.5; cursor: default; }
+  .wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td {
+    text-align: left;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  th {
+    background: var(--header-bg);
+    font-weight: 600;
+    font-size: 12px;
+    cursor: pointer;
+    user-select: none;
+    position: sticky;
+    top: 0;
+  }
+  th .dir { color: var(--accent); }
+  tbody tr:hover { background: var(--row-hover); }
+  tr.group td {
+    background: var(--header-bg);
+    font-weight: 600;
+    border-left: 3px solid var(--group-color, var(--line));
+  }
+  .pill {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    color: #fff;
+    background: var(--muted);
+    margin-right: 3px;
+  }
+  .status { color: var(--muted); padding: 14px; }
+</style>
+</head>
+<body>
+<div class="bar">
+  <h1 id="title">Plaky board</h1>
+  <span class="count" id="count"></span>
+  <input id="filter" type="search" placeholder="Filter items…" hidden>
+  <button id="refresh" hidden>Refresh</button>
+</div>
+<div class="wrap"><div class="status" id="status">Waiting for board data…</div></div>
+<script>
+"use strict";
+/* MCP Apps iframe protocol (spec 2026-01-26): JSON-RPC 2.0 over postMessage.
+   Handshake: ui/initialize (request) -> ui/notifications/initialized, then the
+   host pushes ui/notifications/tool-input and ui/notifications/tool-result. */
+(function () {
+  var PROTOCOL_VERSION = "2026-01-26";
+  var nextId = 1;
+  var pending = {};
+  var toolArgs = null;
+  var data = null;
+  var sortKey = null;
+  var sortDir = 1;
+  var filterText = "";
+
+  function post(msg) { window.parent.postMessage(msg, "*"); }
+
+  function request(method, params) {
+    return new Promise(function (resolve, reject) {
+      var id = nextId++;
+      pending[id] = { resolve: resolve, reject: reject };
+      post({ jsonrpc: "2.0", id: id, method: method, params: params });
+    });
+  }
+
+  function notify(method, params) {
+    post({ jsonrpc: "2.0", method: method, params: params || {} });
+  }
+
+  function applyTheme(ctx) {
+    if (ctx && ctx.theme) {
+      document.documentElement.setAttribute("data-theme", ctx.theme);
+    }
+  }
+
+  window.addEventListener("message", function (event) {
+    var msg = event.data;
+    if (!msg || msg.jsonrpc !== "2.0") return;
+    if (msg.id !== undefined && (msg.result !== undefined || msg.error !== undefined)) {
+      var p = pending[msg.id];
+      if (!p) return;
+      delete pending[msg.id];
+      if (msg.error) p.reject(new Error(msg.error.message || "host error"));
+      else p.resolve(msg.result);
+      return;
+    }
+    if (msg.method === "ui/notifications/tool-input") {
+      toolArgs = (msg.params && msg.params.arguments) || null;
+    } else if (msg.method === "ui/notifications/tool-result") {
+      onToolResult(msg.params);
+    } else if (msg.method === "ui/notifications/host-context-changed") {
+      applyTheme(msg.params);
+    }
+  });
+
+  function onToolResult(result) {
+    var body = result && result.structuredContent;
+    if (!result || result.isError || !body || !body.items) {
+      var text = "The tool returned an error.";
+      if (body && body.error && body.error.message) text = body.error.message;
+      setStatus(text);
+      return;
+    }
+    data = body;
+    sortKey = null;
+    render();
+  }
+
+  function setStatus(text) {
+    document.querySelector(".wrap").innerHTML =
+      '<div class="status"></div>';
+    document.querySelector(".status").textContent = text;
+  }
+
+  function esc(value) {
+    return String(value).replace(/[&<>"]/g, function (ch) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch];
+    });
+  }
+
+  function labelFor(fieldKey, valueKey) {
+    var byField = (data.labels || {})[fieldKey] || {};
+    return byField[valueKey] || { title: String(valueKey), color: "" };
+  }
+
+  function cellHtml(column, value) {
+    if (value === null || value === undefined || value === "") return "";
+    var type = column.type;
+    if (type === "STATUS") {
+      var s = labelFor(column.key, value);
+      return '<span class="pill"' + pillStyle(s.color) + ">" + esc(s.title) + "</span>";
+    }
+    if (type === "TAG") {
+      var keys = Array.isArray(value) ? value : [value];
+      return keys.map(function (k) {
+        var t = labelFor(column.key, k);
+        return '<span class="pill"' + pillStyle(t.color) + ">" + esc(t.title) + "</span>";
+      }).join("");
+    }
+    if (type === "PERSON") {
+      var names = Array.isArray(value) ? value : [value];
+      return esc(names.join(", "));
+    }
+    if (type === "TIMELINE" && typeof value === "object") {
+      return esc((value.start || "") + " → " + (value.end || ""));
+    }
+    if (type === "LINK" && typeof value === "object") {
+      return esc(value.displayText || value.url || "");
+    }
+    return esc(typeof value === "object" ? JSON.stringify(value) : value);
+  }
+
+  function pillStyle(color) {
+    return color ? ' style="background:' + esc(color) + '"' : "";
+  }
+
+  function sortText(column, value) {
+    if (value === null || value === undefined) return "";
+    if (column.type === "STATUS") return labelFor(column.key, value).title.toLowerCase();
+    if (column.type === "TAG") {
+      var keys = Array.isArray(value) ? value : [value];
+      return keys.map(function (k) { return labelFor(column.key, k).title; }).join(" ").toLowerCase();
+    }
+    if (typeof value === "object") return JSON.stringify(value).toLowerCase();
+    return String(value).toLowerCase();
+  }
+
+  function compare(a, b) {
+    var av, bv;
+    if (sortKey === "__title") { av = (a.title || "").toLowerCase(); bv = (b.title || "").toLowerCase(); }
+    else {
+      var column = data.columns.find(function (c) { return c.key === sortKey; });
+      av = sortText(column, a.fields[sortKey]);
+      bv = sortText(column, b.fields[sortKey]);
+      var an = parseFloat(av), bn = parseFloat(bv);
+      if (!isNaN(an) && !isNaN(bn) && String(an) === av && String(bn) === bv) { av = an; bv = bn; }
+    }
+    if (av < bv) return -sortDir;
+    if (av > bv) return sortDir;
+    return 0;
+  }
+
+  function matches(item) {
+    if (!filterText) return true;
+    var haystack = [item.title || ""];
+    data.columns.forEach(function (c) { haystack.push(sortText(c, item.fields[c.key])); });
+    return haystack.join(" ").toLowerCase().indexOf(filterText) !== -1;
+  }
+
+  function render() {
+    document.getElementById("title").textContent = data.board.title || "Plaky board";
+    document.getElementById("filter").hidden = false;
+    document.getElementById("refresh").hidden = false;
+
+    var shown = data.items.filter(matches);
+    var note = "showing " + shown.length + " of " + data.itemCount +
+      (data.hasMore || data.truncated ? "+ items (board has more)" : " items");
+    document.getElementById("count").textContent = note;
+
+    var head = "<tr><th data-key=\"__title\">Item" + dirMark("__title") + "</th>" +
+      data.columns.map(function (c) {
+        return "<th data-key=\"" + esc(c.key) + "\">" + esc(c.title) + dirMark(c.key) + "</th>";
+      }).join("") + "</tr>";
+
+    var groups = data.groups.length ? data.groups : [{ id: null, title: "Items", color: "" }];
+    var body = "";
+    groups.forEach(function (group) {
+      var rows = shown.filter(function (it) {
+        return group.id === null || String(it.groupId) === String(group.id);
+      });
+      if (sortKey) rows = rows.slice().sort(compare);
+      if (!rows.length) return;
+      body += '<tr class="group"><td colspan="' + (data.columns.length + 1) +
+        '" style="--group-color:' + esc(group.color || "") + '">' +
+        esc(group.title || "Group") + " (" + rows.length + ")</td></tr>";
+      rows.forEach(function (item) {
+        body += "<tr><td>" + esc(item.title || item.id) + "</td>" +
+          data.columns.map(function (c) {
+            return "<td>" + cellHtml(c, item.fields[c.key]) + "</td>";
+          }).join("") + "</tr>";
+      });
+    });
+    if (!body) body = '<tr><td colspan="' + (data.columns.length + 1) + '">No matching items.</td></tr>';
+
+    document.querySelector(".wrap").innerHTML =
+      "<table><thead>" + head + "</thead><tbody>" + body + "</tbody></table>";
+
+    document.querySelectorAll("th[data-key]").forEach(function (th) {
+      th.addEventListener("click", function () {
+        var key = th.getAttribute("data-key");
+        if (sortKey === key) sortDir = -sortDir;
+        else { sortKey = key; sortDir = 1; }
+        render();
+      });
+    });
+  }
+
+  function dirMark(key) {
+    if (sortKey !== key) return "";
+    return ' <span class="dir">' + (sortDir === 1 ? "▲" : "▼") + "</span>";
+  }
+
+  document.getElementById("filter").addEventListener("input", function (event) {
+    filterText = event.target.value.trim().toLowerCase();
+    if (data) render();
+  });
+
+  document.getElementById("refresh").addEventListener("click", function () {
+    if (!toolArgs) return;
+    var button = document.getElementById("refresh");
+    button.disabled = true;
+    request("tools/call", { name: "plaky_board_view", arguments: toolArgs })
+      .then(onToolResult)
+      .catch(function (err) { setStatus("Refresh failed: " + err.message); })
+      .then(function () { button.disabled = false; });
+  });
+
+  request("ui/initialize", {
+    protocolVersion: PROTOCOL_VERSION,
+    appInfo: { name: "plaky115-board-view", version: "1.0.0" },
+    appCapabilities: {},
+  }).then(function (result) {
+    applyTheme(result && result.hostContext);
+    notify("ui/notifications/initialized");
+  }).catch(function () {
+    setStatus("Could not connect to the host.");
+  });
+})();
+</script>
+</body>
+</html>

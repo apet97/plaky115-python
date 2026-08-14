@@ -61,6 +61,7 @@ async def test_default_is_curated_read_only() -> None:
         tools = (await client.list_tools()).tools
     names = sorted(t.name for t in tools)
     assert names == [
+        "plaky_board_view",
         "plaky_execute_read_workflow",
         "plaky_find",
         "plaky_plan_mutation",
@@ -94,7 +95,7 @@ async def test_all_mode_excludes_compat_dispatcher_by_default() -> None:
     server = build_server(settings(mode="all", scopes=ALL_SCOPES), sdk_client())
     async with Client(server) as client:
         names = {t.name for t in (await client.list_tools()).tools}
-    assert len(names) == 38
+    assert len(names) == 39
     assert "plaky_execute_workflow" not in names
 
     compat = build_server(
@@ -103,7 +104,7 @@ async def test_all_mode_excludes_compat_dispatcher_by_default() -> None:
     async with Client(compat) as client:
         names = {t.name for t in (await client.list_tools()).tools}
     assert "plaky_execute_workflow" in names
-    assert len(names) == 39
+    assert len(names) == 40
 
 
 async def test_every_tool_has_title_description_and_hints() -> None:

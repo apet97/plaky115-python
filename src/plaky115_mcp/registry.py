@@ -28,6 +28,7 @@ class ToolSpec:
     annotations: ToolAnnotations
     kind: str = "raw"  # "raw" | "curated"
     compat_only: bool = field(default=False)
+    meta: dict[str, Any] | None = None  # extra _meta published on tools/list (e.g. MCP Apps "ui")
 
 
 def validate_spec(spec: ToolSpec) -> None:
@@ -102,6 +103,7 @@ def register_tools(
             title=spec.title,
             description=spec.description,
             annotations=spec.annotations,
+            meta=spec.meta,
         )
         _make_strict(server, spec.name)
         mounted.append(spec.name)
