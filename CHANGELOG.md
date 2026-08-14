@@ -1,5 +1,28 @@
 # Changelog
 
+## v1.2.0
+
+The first MCP App and skills-over-MCP resources:
+
+- New curated read-scope tool `plaky_board_view`: one board's snapshot
+  with columns from the board's field definitions, groups, status/tag
+  label colors, and up to 500 shaped items. Output is bounded twice: at
+  500 items and at a byte budget below the 131,072-byte result cap, with
+  `itemCount`, `hasMore`, and `truncated` reported.
+- The tool links a self-contained HTML template
+  (`ui://plaky115/board-view.html`, served through the SDK's MCP Apps
+  extension). Hosts with Apps support render an interactive table:
+  grouped rows, colored status/tag pills, client-side sort and filter,
+  and a refresh action through the host bridge. Hosts without Apps
+  support receive the complete structured JSON. The app is read-only;
+  see docs/mcp.md for the future-writes design note.
+- The server now serves read-only doc resources: one markdown resource
+  per docs-index entry under `plaky115://docs/{id}`, plus the curated
+  "How to work a Plaky board" guide at `plaky115://skills/board-workflow`.
+- `ToolSpec` gains an optional `meta` pass-through published on
+  `tools/list`; registry validation, mode/scope gating, and strict input
+  schemas are unchanged.
+
 ## v1.1.0
 
 Fixes from the adversarial review of the MCP server, scripts, CI, and
