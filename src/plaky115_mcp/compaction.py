@@ -9,6 +9,7 @@ the cap.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
 from typing import Any, cast
 
 from mcp.types import CallToolResult, TextContent
@@ -19,6 +20,10 @@ from plaky115_mcp.errors import envelope_wire, usage_error
 MAX_RESULT_BYTES = 128 * 1024  # 131_072
 MAX_RAW_VALUE_BYTES = 64 * 1024
 MAX_TEXT_CHARS = 4_000
+# Some hosts (claude.ai custom connectors today) show the model only the
+# text block and hide structuredContent. Results therefore mirror the
+# structured payload into the text block when it fits this budget.
+MAX_MIRROR_CHARS = 32_000
 
 _COMPACT_FIELD_LIMIT = 20
 
@@ -36,16 +41,18 @@ def make_result(
     is_error: bool = False,
 ) -> CallToolResult:
     """Build a bounded CallToolResult; oversized output degrades to a usage error."""
-    safe_text = redact(text)
-    if len(safe_text) > MAX_TEXT_CHARS:
-        safe_text = safe_text[: MAX_TEXT_CHARS - 1] + "…"
-    result = CallToolResult(
-        content=[TextContent(type="text", text=safe_text)],
-        structured_content=cast("dict[str, Any] | None", redact_value(structured)),
-        is_error=is_error,
-    )
-    if result_bytes(result) <= MAX_RESULT_BYTES:
-        return result
+    summary = redact(text)
+    if len(summary) > MAX_TEXT_CHARS:
+        summary = summary[: MAX_TEXT_CHARS - 1] + "…"
+    structured_safe = cast("dict[str, Any] | None", redact_value(structured))
+    for body in _text_bodies(summary, structured_safe):
+        result = CallToolResult(
+            content=[TextContent(type="text", text=body)],
+            structured_content=structured_safe,
+            is_error=is_error,
+        )
+        if result_bytes(result) <= MAX_RESULT_BYTES:
+            return result
     envelope = envelope_wire(
         usage_error(
             "Result exceeds the 131072-byte serialized limit; narrow the request "
@@ -57,6 +64,19 @@ def make_result(
         structured_content=envelope,
         is_error=True,
     )
+
+
+def _text_bodies(summary: str, structured: dict[str, Any] | None) -> Iterator[str]:
+    """Prefer summary plus an inline JSON mirror; fall back to the summary alone.
+
+    The mirror is skipped when the payload exceeds MAX_MIRROR_CHARS, and
+    make_result drops it when the mirrored result would exceed the result cap.
+    """
+    if structured is not None:
+        blob = json.dumps(structured, ensure_ascii=False, separators=(",", ":"))
+        if len(blob) <= MAX_MIRROR_CHARS:
+            yield f"{summary}\n{blob}"
+    yield summary
 
 
 def error_result(envelope: dict[str, Any], summary: str) -> CallToolResult:

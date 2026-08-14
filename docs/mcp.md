@@ -55,6 +55,11 @@ plaky115-mcp --transport streamable-http --host 127.0.0.1 --port 8000
 - The complete serialized result is capped at 131,072 bytes; larger output
   degrades to a structured usage error. Collections paginate with exact
   continuations.
+- The text block carries a one-line summary followed by a compact JSON
+  mirror of the structured payload, so hosts that show the model only the
+  text block (claude.ai custom connectors today) still see the data. The
+  mirror is skipped above 32,000 characters or when it would exceed the
+  result cap.
 - Uploads accept `fileBase64` + `fileName` (+ `contentType`); local paths
   are never accepted; base64 is never echoed back.
 - Mutation workflows default to dry-run; live execution returns durable

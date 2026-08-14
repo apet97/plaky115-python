@@ -277,6 +277,44 @@ def test_structured_content_is_redacted() -> None:
     assert "plk_abc123" not in dumped
 
 
+def _text_body(result: Any) -> str:
+    from mcp.types import TextContent
+
+    block = result.content[0]
+    assert isinstance(block, TextContent)
+    return block.text
+
+
+def test_text_block_mirrors_structured_payload() -> None:
+    """Hosts that hide structuredContent still see the data in the text block."""
+    result = make_result(
+        text="plaky_workspace_context: 1 space(s)",
+        structured={"data": [{"id": 165999, "title": "Mine"}]},
+    )
+    body = _text_body(result)
+    assert body.startswith("plaky_workspace_context: 1 space(s)\n")
+    assert json.loads(body.split("\n", 1)[1]) == {"data": [{"id": 165999, "title": "Mine"}]}
+
+
+def test_text_mirror_covers_error_envelopes() -> None:
+    from plaky115_mcp.compaction import error_result
+
+    result = error_result(
+        {"error": {"category": "usage", "hint": "pass spaceId"}}, "Missing spaceId."
+    )
+    assert "pass spaceId" in _text_body(result)
+
+
+def test_text_mirror_skipped_when_payload_exceeds_budget() -> None:
+    from plaky115_mcp.compaction import MAX_MIRROR_CHARS
+
+    big = make_result(text="summary", structured={"pad": "a" * (MAX_MIRROR_CHARS + 10)})
+    assert big.is_error is False
+    assert _text_body(big) == "summary"
+    multibyte = make_result(text="summary", structured={"pad": "č" * 10})
+    assert "č" in _text_body(multibyte)
+
+
 async def test_result_cap_returns_structured_usage_error() -> None:
     big = make_result(text="x", structured={"data": ["y" * (MAX_RESULT_BYTES + 100)]})
     assert big.is_error is True
@@ -290,10 +328,17 @@ async def test_result_cap_returns_structured_usage_error() -> None:
 
 def test_result_cap_boundaries_ascii_and_multibyte() -> None:
     # Exactly at the cap passes; one byte over degrades. The envelope adds a
-    # fixed overhead, computed via a probe result.
-    probe = make_result(text="p", structured={"pad": ""})
+    # fixed overhead, computed via a probe shaped like the summary-only
+    # fallback (payloads this large skip the inline text mirror).
+    from mcp.types import CallToolResult, TextContent
+
     from plaky115_mcp.compaction import result_bytes
 
+    probe = CallToolResult(
+        content=[TextContent(type="text", text="p")],
+        structured_content={"pad": ""},
+        is_error=False,
+    )
     overhead = result_bytes(probe)
     fits = MAX_RESULT_BYTES - overhead
     at_cap = make_result(text="p", structured={"pad": "a" * fits})

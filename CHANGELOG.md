@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.2.1
+
+Host-compat fix for text-only MCP hosts:
+
+- Tool results now mirror the structured payload into the text block as
+  compact JSON (after the one-line summary). Some hosts — claude.ai
+  custom connectors today — show the model only the text block and hide
+  `structuredContent`, which made data tools read as bare counts there.
+- The mirror is bounded: it is skipped when the payload exceeds 32,000
+  characters or when mirroring would push the serialized result over the
+  131,072-byte cap; the summary-only text block is kept in those cases.
+  Redaction applies to the mirror exactly as to structured output.
+
 ## v1.2.0
 
 The first MCP App and skills-over-MCP resources:
