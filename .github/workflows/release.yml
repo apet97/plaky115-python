@@ -30,7 +30,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Install uv (pinned)
-        run: python -m pip install uv==0.9.18
+        run: python -m pip install uv==0.12.4
       - name: Tag must point at a commit on main
         run: |
           git fetch origin main
@@ -41,10 +41,10 @@ jobs:
         env:
           TAG: ${{ github.ref_name }}
         run: |
-          version="$(uv run python -c 'from plaky115._version import __version__; print(__version__)')"
+          version="$(uv run --frozen python -c 'from plaky115._version import __version__; print(__version__)')"
           test "$version" = "${TAG#v}"
       - name: Release verification (offline gates + dependency audit)
-        run: uv run python scripts/verify.py --release-online
+        run: uv run --frozen python scripts/verify.py --release-online
       - name: Built artifacts must carry exactly the tag version
         env:
           TAG: ${{ github.ref_name }}
