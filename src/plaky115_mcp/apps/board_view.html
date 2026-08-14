@@ -199,15 +199,11 @@
     if (value === null || value === undefined || value === "") return "";
     var type = column.type;
     if (type === "STATUS") {
-      var s = labelFor(column.key, value);
-      return '<span class="pill"' + pillStyle(s.color) + ">" + esc(s.title) + "</span>";
+      return pillHtml(labelFor(column.key, value));
     }
     if (type === "TAG") {
       var keys = Array.isArray(value) ? value : [value];
-      return keys.map(function (k) {
-        var t = labelFor(column.key, k);
-        return '<span class="pill"' + pillStyle(t.color) + ">" + esc(t.title) + "</span>";
-      }).join("");
+      return keys.map(function (k) { return pillHtml(labelFor(column.key, k)); }).join("");
     }
     if (type === "PERSON") {
       var names = Array.isArray(value) ? value : [value];
@@ -222,8 +218,35 @@
     return esc(typeof value === "object" ? JSON.stringify(value) : value);
   }
 
-  function pillStyle(color) {
-    return color ? ' style="background:' + esc(color) + '"' : "";
+  /* Plaky label colors arrive as hex or material-palette names. */
+  var MATERIAL = {
+    "red": "#F44336", "pink": "#E91E63", "purple": "#9C27B0",
+    "deep-purple": "#673AB7", "indigo": "#3F51B5", "blue": "#2196F3",
+    "light-blue": "#03A9F4", "cyan": "#00BCD4", "teal": "#009688",
+    "green": "#4CAF50", "light-green": "#8BC34A", "lime": "#CDDC39",
+    "yellow": "#FFEB3B", "amber": "#FFC107", "orange": "#FF9800",
+    "deep-orange": "#FF5722", "brown": "#795548", "gray": "#9E9E9E",
+    "grey": "#9E9E9E", "blue-gray": "#607D8B", "blue-grey": "#607D8B",
+  };
+
+  function resolveColor(color) {
+    if (!color) return "";
+    if (color.charAt(0) === "#") return color;
+    if (MATERIAL[color]) return MATERIAL[color];
+    return (window.CSS && CSS.supports("color", color)) ? color : "";
+  }
+
+  function pillHtml(label) {
+    if (!label.title) return "";  /* untitled = Plaky's unset state */
+    var background = resolveColor(label.color);
+    var style = "";
+    if (background) {
+      var rgb = parseInt(background.slice(1, 7), 16);
+      var luma = 0.299 * (rgb >> 16) + 0.587 * ((rgb >> 8) & 255) + 0.114 * (rgb & 255);
+      var fg = luma > 160 ? "#1a1d21" : "#fff";
+      style = ' style="background:' + esc(background) + ";color:" + fg + '"';
+    }
+    return '<span class="pill"' + style + ">" + esc(label.title) + "</span>";
   }
 
   function sortText(column, value) {

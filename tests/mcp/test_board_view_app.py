@@ -31,6 +31,7 @@ BOARD = {
                 "values": [
                     {"key": "s-open", "title": "Open", "color": "#22c55e"},
                     {"key": "s-done", "title": "Done", "color": "#6b7280"},
+                    {"key": "s-unset", "color": "blue-gray"},
                 ]
             },
         },
@@ -123,6 +124,8 @@ async def test_tool_links_template_and_shapes_board() -> None:
         # The keyless field definition is dropped; four columns remain.
         assert [c["key"] for c in body["columns"]] == ["status-1", "tag-1", "person-1", "text-1"]
         assert body["labels"]["status-1"]["s-open"] == {"title": "Open", "color": "#22c55e"}
+        # An untitled label keeps an empty title (Plaky's unset state).
+        assert body["labels"]["status-1"]["s-unset"] == {"title": "", "color": "blue-gray"}
         assert body["labels"]["tag-1"]["t-1"] == {"title": "Urgent", "color": "#ef4444"}
         assert [g["id"] for g in body["groups"]] == [100, 101]
         assert body["itemCount"] == 2 and body["hasMore"] is False

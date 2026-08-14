@@ -83,7 +83,7 @@ plaky115-mcp --transport streamable-http --port 8000 # deployment
 - **Safe by default:** `curated` mode + `read` scope. Write and
   destructive tools mount only with explicit flags; mutation workflows
   default to **dry-run**.
-- **Two tool surfaces:** 32 generated raw tools (one per operation) and 7
+- **Two tool surfaces:** 32 generated raw tools (one per operation) and 8
   curated tools with 11 workflow IDs (`workspace.map`, `items.search`,
   `comments.thread`, `export.items`, `items.create`, `items.updateFields`,
   `comments.add`, `itemGroups.create`, `itemGroups.update`,

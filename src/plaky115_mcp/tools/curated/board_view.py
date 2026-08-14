@@ -103,8 +103,10 @@ def _columns_and_labels(
             for value in cast("list[dict[str, Any]]", configuration.get("values") or []):
                 value_key = value.get("key")
                 if value_key:
+                    # An untitled label is Plaky's "unset" state; keep the
+                    # title empty so the widget renders no pill for it.
                     palette[value_key] = {
-                        "title": value.get("title") or value_key,
+                        "title": value.get("title") or "",
                         "color": value.get("color"),
                     }
             labels[key] = palette
