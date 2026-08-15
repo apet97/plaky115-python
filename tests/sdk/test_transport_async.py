@@ -442,15 +442,26 @@ async def test_async_headers_and_request_hook_share_the_preflight_budget() -> No
 
 
 async def test_timeout_before_headers_retries_only_configured_read_attempts() -> None:
+    dispatches = [0]
+
+    def on_dispatch() -> None:
+        dispatches[0] += 1
+
     with delayed_http_server(delay_before_headers=0.05) as (base_url, calls):
         async with httpx2.AsyncClient() as client:
             with pytest.raises(errors.PlakyTimeoutError):
                 await async_request(
                     client,
                     RequestSpec(method="GET", path="/x"),
-                    make_options(server_url=base_url, timeout=0.01, max_retries=1),
+                    make_options(
+                        server_url=base_url,
+                        timeout=0.01,
+                        max_retries=1,
+                        on_dispatch=on_dispatch,
+                    ),
                 )
-    assert calls[0] == 2
+    assert dispatches[0] == 2
+    assert 1 <= calls[0] <= dispatches[0]
 
 
 async def test_timeout_after_headers_is_mapped_without_a_retry() -> None:
