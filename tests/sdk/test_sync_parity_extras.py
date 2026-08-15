@@ -7,7 +7,7 @@ import pytest
 
 from plaky115 import (
     Page,
-    PlakyAmbiguousMatchError,
+    PlakyBoundedResultError,
     PlakyClient,
     PlakyConnectionError,
     PlakyNotFoundError,
@@ -101,8 +101,8 @@ def test_sync_resolvers() -> None:
         assert resolve_item(client, space=1, board=7, item=1).id == 1
         items = resolve_items_in_board(client, space_id=1, board_id=7, items=[1])
         assert [i.id for i in items] == [1]
-        mixed = resolve_items_in_board(client, space_id=1, board_id=7, items=["three"])
-        assert [i.id for i in mixed] == [3]
+        with pytest.raises(PlakyBoundedResultError, match="inconclusive"):
+            resolve_items_in_board(client, space_id=1, board_id=7, items=["three"])
         assert (
             resolve_item_group_in_board(client, space_id=1, board_id=7, item_group="group").id
             == 55
@@ -115,7 +115,7 @@ def test_sync_resolvers() -> None:
         )
         with pytest.raises(PlakyNotFoundError):
             resolve_team(client, "missing team")
-        with pytest.raises(PlakyAmbiguousMatchError):
+        with pytest.raises(PlakyBoundedResultError, match="inconclusive"):
             resolve_items_in_board(client, space_id=1, board_id=7, items=["t"])
 
 

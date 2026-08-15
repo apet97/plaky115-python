@@ -17,6 +17,17 @@ of their respective owners.
   and support `with_options`, `close()`/`aclose()`, and context managers.
 - Low-level escape hatches: `client.request(...)` and
   `client.request_with_response(...)`.
+- Passing both `http_client` and `transport` raises `ValueError`; select one
+  injection boundary. An explicit method `idempotency_key` wins over an
+  override; an explicit empty string intentionally suppresses the header.
+- Each async attempt has one timeout budget for API-key and header providers,
+  request and response hooks, HTTP I/O, bounded body reads, and decoding.
+  Async attempts use one total timeout budget; backoff is outside it. Only a GET failure before response headers
+  can retry; a timeout or connection failure after headers never retries.
+  Sync timeout enforcement applies to HTTP I/O, including body and stream
+  reads. Sync cannot safely interrupt a local provider or hook.
+  Response streams close on exhaustion, error, explicit close, or
+  context-manager exit; stream I/O timeouts use `PlakyTimeoutError`.
 
 ## Naming
 
@@ -32,6 +43,10 @@ List endpoints offer `list`, `iterate` (lazy), and `list_all` (bounded by
 `limit`). `comments.list` normalizes the API's bare array into
 `Page(has_more=False)`. `item_files.list` stays a plain list.
 
+`items.iterate` and `items.list_all` preserve `board_view_id`, `parent_id`,
+and `subitems_behaviour` on every page. Text resolvers make one bounded page
+decision: an incomplete page is inconclusive rather than a false match.
+
 ## Errors and retries
 
 Typed errors under `PlakyError`; API failures map by status
@@ -39,6 +54,11 @@ Typed errors under `PlakyError`; API failures map by status
 timeouts, connection failures) with equal-jitter backoff and bounded
 Retry-After. Writes make exactly one network attempt, even with an
 explicit `idempotency_key`.
+
+Export format and CSV-safety values are validated before any reference lookup
+or network call. Use only `jsonl` or `csv`, and `spreadsheet` or `raw` CSV
+safety. Download-link expiry metadata is exposed as `expiresInSeconds` at the
+MCP compaction boundary; signed URLs remain sensitive capabilities.
 
 ## Pagination and chunks
 

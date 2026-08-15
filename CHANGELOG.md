@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.2.2
+
+- Fixed mutation attempt tracking, item pagination filters, transport timeout
+  phases, stream ownership, trusted-origin normalization, bounded resolvers,
+  and export validation.
+- Added strict curated and generated MCP input schemas, safe diagnostics,
+  modern catalog cache hints, Board View lifecycle cleanup, and a local
+  provider-neutral evaluation corpus.
+- Hardened release provenance and the stable CI aggregate check.
+
 ## v1.2.1
 
 Host-compat fix for text-only MCP hosts:
@@ -27,8 +37,7 @@ The first MCP App and skills-over-MCP resources:
   extension). Hosts with Apps support render an interactive table:
   grouped rows, colored status/tag pills, client-side sort and filter,
   and a refresh action through the host bridge. Hosts without Apps
-  support receive the complete structured JSON. The app is read-only;
-  see docs/mcp.md for the future-writes design note.
+  support receive the complete structured JSON. The app is read-only.
 - The server now serves read-only doc resources: one markdown resource
   per docs-index entry under `plaky115://docs/{id}`, plus the curated
   "How to work a Plaky board" guide at `plaky115://skills/board-workflow`.

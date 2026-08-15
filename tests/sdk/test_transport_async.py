@@ -2,6 +2,10 @@
 
 import asyncio
 import json
+import time
+from collections.abc import Generator
+from contextlib import contextmanager, suppress
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
 import httpx2
@@ -29,6 +33,44 @@ def make_options(**overrides: Any) -> RequestOptions:
 
 def mock_client(handler: Any) -> httpx2.AsyncClient:
     return httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
+
+
+@contextmanager
+def delayed_http_server(
+    *, delay_before_headers: float = 0.0, delay_before_body: float = 0.0
+) -> Generator[tuple[str, list[int]], None, None]:
+    """Serve one bounded response with separately controllable delay phases."""
+
+    calls = [0]
+
+    class Handler(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def do_GET(self) -> None:
+            calls[0] += 1
+            if delay_before_headers:
+                time.sleep(delay_before_headers)
+            self.send_response(200)
+            self.send_header("content-type", "application/json")
+            self.send_header("content-length", "2")
+            self.end_headers()
+            self.wfile.flush()
+            if delay_before_body:
+                time.sleep(delay_before_body)
+            with suppress(BrokenPipeError):
+                self.wfile.write(b"{}")
+
+        def log_message(self, format: str, *args: object) -> None:
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = asyncio.to_thread(server.serve_forever)
+    task = asyncio.create_task(thread)
+    try:
+        yield f"http://127.0.0.1:{server.server_address[1]}", calls
+    finally:
+        server.shutdown()
+        task.cancel()
 
 
 @pytest.fixture(autouse=True)
@@ -329,9 +371,8 @@ async def test_connection_error_retried_for_get_only() -> None:
 
 
 async def test_timeout_maps_to_timeout_error() -> None:
-    async def handler(request: httpx2.Request) -> httpx2.Response:
-        await asyncio.sleep(10)
-        return httpx2.Response(200)
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        raise httpx2.ReadTimeout("slow")
 
     async with mock_client(handler) as client:
         with pytest.raises(errors.PlakyTimeoutError) as info:
@@ -339,6 +380,123 @@ async def test_timeout_maps_to_timeout_error() -> None:
                 client, RequestSpec(method="POST", path="/x"), make_options(timeout=0.05)
             )
     assert str(info.value) == "Request timed out."
+
+
+async def test_async_api_key_provider_timeout_is_preflight_and_never_dispatches() -> None:
+    calls = 0
+
+    async def provider() -> str:
+        await asyncio.sleep(0.05)
+        return "plk_test_key"
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        nonlocal calls
+        calls += 1
+        return httpx2.Response(200, json={})
+
+    started = time.perf_counter()
+    async with mock_client(handler) as client:
+        with pytest.raises(errors.PlakyTimeoutError):
+            await async_request(
+                client,
+                RequestSpec(method="GET", path="/x"),
+                make_options(api_key=provider, timeout=0.01),
+            )
+    assert time.perf_counter() - started < 0.04
+    assert calls == 0
+
+
+async def test_async_headers_and_request_hook_share_the_preflight_budget() -> None:
+    calls = 0
+
+    async def headers() -> dict[str, str]:
+        await asyncio.sleep(0.05)
+        return {"x-test": "value"}
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        nonlocal calls
+        calls += 1
+        return httpx2.Response(200, json={})
+
+    async with mock_client(handler) as client:
+        with pytest.raises(errors.PlakyTimeoutError):
+            await async_request(
+                client,
+                RequestSpec(method="GET", path="/x"),
+                make_options(headers=headers, timeout=0.01),
+            )
+    assert calls == 0
+
+    async def hook(context: dict[str, Any]) -> dict[str, Any]:
+        await asyncio.sleep(0.05)
+        return context
+
+    async with mock_client(handler) as client:
+        with pytest.raises(errors.PlakyTimeoutError):
+            await async_request(
+                client,
+                RequestSpec(method="GET", path="/x"),
+                make_options(request_hook=hook, timeout=0.01),
+            )
+    assert calls == 0
+
+
+async def test_timeout_before_headers_retries_only_configured_read_attempts() -> None:
+    with delayed_http_server(delay_before_headers=0.05) as (base_url, calls):
+        async with httpx2.AsyncClient() as client:
+            with pytest.raises(errors.PlakyTimeoutError):
+                await async_request(
+                    client,
+                    RequestSpec(method="GET", path="/x"),
+                    make_options(server_url=base_url, timeout=0.01, max_retries=1),
+                )
+    assert calls[0] == 2
+
+
+async def test_timeout_after_headers_is_mapped_without_a_retry() -> None:
+    with delayed_http_server(delay_before_body=0.05) as (base_url, calls):
+        async with httpx2.AsyncClient() as client:
+            with pytest.raises(errors.PlakyTimeoutError):
+                await async_request(
+                    client,
+                    RequestSpec(method="GET", path="/x"),
+                    make_options(server_url=base_url, timeout=0.01, max_retries=2),
+                )
+    assert calls[0] == 1
+
+
+async def test_response_hook_uses_the_remaining_attempt_budget_without_retry() -> None:
+    calls = 0
+
+    async def hook(context: dict[str, Any]) -> None:
+        await asyncio.sleep(0.05)
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        nonlocal calls
+        calls += 1
+        return httpx2.Response(200, json={})
+
+    async with mock_client(handler) as client:
+        with pytest.raises(errors.PlakyTimeoutError):
+            await async_request(
+                client,
+                RequestSpec(method="GET", path="/x"),
+                make_options(response_hook=hook, timeout=0.01, max_retries=2),
+            )
+    assert calls == 1
+
+
+async def test_requested_async_stream_maps_iteration_timeout_and_closes_once() -> None:
+    with delayed_http_server(delay_before_body=0.05) as (base_url, calls):
+        async with httpx2.AsyncClient() as client:
+            response = await async_request_with_response(
+                client,
+                RequestSpec(method="GET", path="/x", response_type="stream"),
+                make_options(server_url=base_url, timeout=0.01, max_retries=2),
+            )
+            with pytest.raises(errors.PlakyTimeoutError):
+                await anext(response.data)
+    assert calls[0] == 1
 
 
 async def test_cancellation_propagates_uncaught() -> None:

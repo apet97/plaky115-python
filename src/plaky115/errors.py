@@ -18,6 +18,7 @@ __all__ = [
     "PlakyAmbiguousMatchError",
     "PlakyApiError",
     "PlakyAuthError",
+    "PlakyBoundedResultError",
     "PlakyCancelledError",
     "PlakyConflictError",
     "PlakyConnectionError",
@@ -97,6 +98,10 @@ class PlakyAmbiguousMatchError(PlakyError):
         super().__init__(message)
         self.candidates = tuple(candidates)
         self.candidate_count = candidate_count
+
+
+class PlakyBoundedResultError(PlakyError):
+    """A one-page reference lookup cannot make a conclusive decision."""
 
 
 class PlakyOutputLimitError(PlakyError):

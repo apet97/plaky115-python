@@ -107,16 +107,15 @@ Deployment notes: [`docs/mcp.md`](docs/mcp.md) and
 | [docs/sdk.md](docs/sdk.md) | Clients, options, resources, errors, pagination |
 | [docs/mcp.md](docs/mcp.md) | Modes, scopes, result contracts, deployment |
 | [docs/compatibility-inventory.md](docs/compatibility-inventory.md) | All 32 operations mapped to SDK + MCP names |
-| [docs/api-behavior.md](docs/api-behavior.md) | Wire-level behavior notes |
-| [docs/security.md](docs/security.md) · [SECURITY.md](SECURITY.md) | Credential and transport policy |
-| [docs/contract-evolution.md](docs/contract-evolution.md) | fetch → diff → accept → regenerate |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Architecture, generated boundaries, contract and evaluation workflow |
+| [SECURITY.md](SECURITY.md) | Credential and transport policy |
 | [docs/live-certification.md](docs/live-certification.md) | Read/write live gates |
 
 ## Development
 
 ```bash
 uv sync --all-extras --group dev
-uv run pytest                              # 309 tests
+uv run pytest
 uv run python scripts/verify.py --offline  # full release-grade gate
 ```
 

@@ -73,6 +73,21 @@ async def test_default_is_curated_read_only() -> None:
         assert tool.annotations.read_only_hint is True
 
 
+async def test_all_modern_cacheable_results_use_private_five_minute_hints() -> None:
+    server = build_server(settings(), sdk_client())
+    async with Client(server, mode="2026-07-28") as client:
+        results = [
+            await client.list_tools(),
+            await client.list_prompts(),
+            await client.list_resources(),
+            await client.list_resource_templates(),
+            await client.read_resource("plaky115://docs/listSpaces"),
+        ]
+    for result in results:
+        assert result.ttl_ms == 300_000
+        assert result.cache_scope == "private"
+
+
 async def test_generated_mode_mounts_exactly_32_raw_tools() -> None:
     server = build_server(settings(mode="generated", scopes=ALL_SCOPES), sdk_client())
     async with Client(server) as client:

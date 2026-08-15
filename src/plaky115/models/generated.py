@@ -77,6 +77,7 @@ class CommentRequest(BaseModel):
 
     model_config = ConfigDict(
         extra="forbid",
+        strict=True,
         populate_by_name=True,
     )
     replies_to_id: Annotated[
@@ -104,6 +105,7 @@ class FieldValueChangeRequest(BaseModel):
 
     model_config = ConfigDict(
         extra="forbid",
+        strict=True,
         populate_by_name=True,
     )
     value: Annotated[
@@ -162,6 +164,7 @@ class ItemCreateRequest(BaseModel):
 
     model_config = ConfigDict(
         extra="forbid",
+        strict=True,
         populate_by_name=True,
     )
     fields: Annotated[
@@ -319,6 +322,7 @@ class ItemFileUpdateRequest(BaseModel):
 
     model_config = ConfigDict(
         extra="forbid",
+        strict=True,
         populate_by_name=True,
     )
     description: Annotated[
@@ -342,6 +346,7 @@ class ItemFileUpdateRequest(BaseModel):
 class ItemGroupCreateRequest(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
+        strict=True,
         populate_by_name=True,
     )
     color: Annotated[
@@ -393,6 +398,7 @@ class ItemGroupResponse(BaseModel):
 class ItemGroupUpdateRequest(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
+        strict=True,
         populate_by_name=True,
     )
     color: Annotated[
@@ -587,6 +593,7 @@ class ReactionPutRequest(BaseModel):
 
     model_config = ConfigDict(
         extra="forbid",
+        strict=True,
         populate_by_name=True,
     )
     reactions: Annotated[

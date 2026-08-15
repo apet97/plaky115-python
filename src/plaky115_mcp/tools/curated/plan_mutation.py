@@ -20,20 +20,10 @@ from plaky115.workflows.mutation_plans import (
     normalize_item_update_fields_plan,
 )
 from plaky115_mcp.compaction import error_result, make_result
-from plaky115_mcp.errors import envelope_wire, error_envelope, internal_error, usage_error
-from plaky115_mcp.outputs import EntityOutput
+from plaky115_mcp.errors import envelope_wire, error_envelope, internal_error
+from plaky115_mcp.outputs import PlanMutationOutput
 from plaky115_mcp.registry import ToolSpec
-
-_OPERATIONS = (
-    "createItem",
-    "updateItemFields",
-    "createItemComment",
-    "updateItemComment",
-    "createItemGroup",
-    "updateItemGroup",
-    "updateItemFile",
-    "uploadItemFile",
-)
+from plaky115_mcp.workflow_models import PLAN_MUTATION_SCHEMA, CanonicalId, validate_plan_mutation
 
 
 def plan_wire(plan: NormalizedMutationPlan) -> dict[str, Any]:
@@ -120,25 +110,46 @@ def normalize_for_operation(
 def build_plan_mutation() -> ToolSpec:
     async def plaky_plan_mutation(
         operation: str,
-        spaceId: int | str,
-        boardId: int | str,
+        spaceId: CanonicalId,
+        boardId: CanonicalId,
         body: dict[str, Any],
-        itemId: int | str | None = None,
-        itemCommentId: int | str | None = None,
-        itemGroupId: int | str | None = None,
-        itemFileId: int | str | None = None,
-    ) -> Annotated[CallToolResult, EntityOutput]:
+        itemId: CanonicalId | None = None,
+        itemCommentId: CanonicalId | None = None,
+        itemGroupId: CanonicalId | None = None,
+        itemFileId: CanonicalId | None = None,
+    ) -> Annotated[CallToolResult, PlanMutationOutput]:
         try:
-            if operation not in _OPERATIONS:
-                envelope = usage_error(f"operation must be one of {', '.join(_OPERATIONS)}")
-                return error_result(envelope_wire(envelope), "Invalid operation.")
+            values: dict[str, Any] = {
+                "operation": operation,
+                "spaceId": spaceId,
+                "boardId": boardId,
+                "body": body,
+            }
+            for name, value in (
+                ("itemId", itemId),
+                ("itemCommentId", itemCommentId),
+                ("itemGroupId", itemGroupId),
+                ("itemFileId", itemFileId),
+            ):
+                if value is not None:
+                    values[name] = value
+            validated = validate_plan_mutation(values)
             plan = normalize_for_operation(
-                operation, spaceId, boardId, body, itemId, itemCommentId, itemGroupId, itemFileId
+                validated["operation"],
+                validated["spaceId"],
+                validated["boardId"],
+                validated["body"],
+                validated.get("itemId"),
+                validated.get("itemCommentId"),
+                validated.get("itemGroupId"),
+                validated.get("itemFileId"),
             )
             wire = plan_wire(plan)
             # Base64 content never appears in plan output.
             return make_result(
-                text=f"plaky_plan_mutation: {operation} validated; no write performed",
+                text=(
+                    f"plaky_plan_mutation: {validated['operation']} validated; no write performed"
+                ),
                 structured=wire,
             )
         except asyncio.CancelledError:
@@ -165,4 +176,5 @@ def build_plan_mutation() -> ToolSpec:
             open_world_hint=False,
         ),
         kind="curated",
+        parameters=PLAN_MUTATION_SCHEMA,
     )

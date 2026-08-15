@@ -39,12 +39,15 @@ def build_tool(client: AsyncPlakyClient) -> ToolSpec:
         except (PlakyError, ValueError, TypeError) as exc:
             return error_result(envelope_wire(error_envelope(exc, None)), str(exc))
         except Exception as exc:  # controlled internal-error path
-            return error_result(envelope_wire(internal_error(exc)), "Internal server error.")
+            return error_result(
+                envelope_wire(internal_error(exc, None)),
+                "Internal server error.",
+            )
 
     return ToolSpec(
         name="plaky_get_current_user",
         title="Get current user",
-        description="Retrieve current user",
+        description="Retrieve current user; it returns the requested result. Requires no identifiers and read scope. This operation is read-only.",
         handler=get_current_user,
         scopes=frozenset({"read"}),
         annotations=ToolAnnotations(
@@ -54,4 +57,10 @@ def build_tool(client: AsyncPlakyClient) -> ToolSpec:
             open_world_hint=True,
         ),
         kind="raw",
+        parameters={
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {},
+            "required": [],
+        },
     )

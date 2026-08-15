@@ -124,6 +124,7 @@
   var sortKey = null;
   var sortDir = 1;
   var filterText = "";
+  var tornDown = false;
 
   function post(msg) { window.parent.postMessage(msg, "*"); }
 
@@ -145,9 +146,15 @@
     }
   }
 
-  window.addEventListener("message", function (event) {
+  function onMessage(event) {
+    if (event.source !== window.parent || tornDown) return;
     var msg = event.data;
     if (!msg || msg.jsonrpc !== "2.0") return;
+    if (msg.method === "ui/resource-teardown") {
+      if (msg.id !== undefined) post({ jsonrpc: "2.0", id: msg.id, result: {} });
+      teardown();
+      return;
+    }
     if (msg.id !== undefined && (msg.result !== undefined || msg.error !== undefined)) {
       var p = pending[msg.id];
       if (!p) return;
@@ -163,7 +170,25 @@
     } else if (msg.method === "ui/notifications/host-context-changed") {
       applyTheme(msg.params);
     }
-  });
+  }
+
+  function teardown() {
+    if (tornDown) return;
+    tornDown = true;
+    window.removeEventListener("message", onMessage);
+    Object.keys(pending).forEach(function (id) {
+      pending[id].reject(new Error("Board View resource was torn down."));
+      delete pending[id];
+    });
+    document.getElementById("filter").removeEventListener("input", onFilterInput);
+    document.getElementById("refresh").removeEventListener("click", onRefreshClick);
+    document.getElementById("filter").disabled = true;
+    document.getElementById("refresh").disabled = true;
+    toolArgs = null;
+    data = null;
+  }
+
+  window.addEventListener("message", onMessage);
 
   function onToolResult(result) {
     var body = result && result.structuredContent;
@@ -231,9 +256,9 @@
 
   function resolveColor(color) {
     if (!color) return "";
-    if (color.charAt(0) === "#") return color;
+    if (/^#[0-9a-fA-F]{6}$/.test(color)) return color;
     if (MATERIAL[color]) return MATERIAL[color];
-    return (window.CSS && CSS.supports("color", color)) ? color : "";
+    return "";
   }
 
   function pillHtml(label) {
@@ -297,16 +322,22 @@
         return "<th data-key=\"" + esc(c.key) + "\">" + esc(c.title) + dirMark(c.key) + "</th>";
       }).join("") + "</tr>";
 
-    var groups = data.groups.length ? data.groups : [{ id: null, title: "Items", color: "" }];
+    var groups = data.groups.slice();
+    var knownGroupIds = {};
+    groups.forEach(function (group) { knownGroupIds[String(group.id)] = true; });
+    var ungrouped = shown.filter(function (item) {
+      return item.groupId === null || item.groupId === undefined || !knownGroupIds[String(item.groupId)];
+    });
+    if (ungrouped.length) groups.push({ id: "__ungrouped", title: "Ungrouped", color: "", ungrouped: true });
     var body = "";
     groups.forEach(function (group) {
       var rows = shown.filter(function (it) {
-        return group.id === null || String(it.groupId) === String(group.id);
+        return group.ungrouped ? (it.groupId === null || it.groupId === undefined || !knownGroupIds[String(it.groupId)]) : String(it.groupId) === String(group.id);
       });
       if (sortKey) rows = rows.slice().sort(compare);
       if (!rows.length) return;
       body += '<tr class="group"><td colspan="' + (data.columns.length + 1) +
-        '" style="--group-color:' + esc(group.color || "") + '">' +
+        '" style="--group-color:' + esc(resolveColor(group.color)) + '">' +
         esc(group.title || "Group") + " (" + rows.length + ")</td></tr>";
       rows.forEach(function (item) {
         body += "<tr><td>" + esc(item.title || item.id) + "</td>" +
@@ -335,29 +366,40 @@
     return ' <span class="dir">' + (sortDir === 1 ? "▲" : "▼") + "</span>";
   }
 
-  document.getElementById("filter").addEventListener("input", function (event) {
+  function onFilterInput(event) {
     filterText = event.target.value.trim().toLowerCase();
     if (data) render();
-  });
+  }
 
-  document.getElementById("refresh").addEventListener("click", function () {
+  function onRefreshClick() {
     if (!toolArgs) return;
     var button = document.getElementById("refresh");
     button.disabled = true;
     request("tools/call", { name: "plaky_board_view", arguments: toolArgs })
-      .then(onToolResult)
-      .catch(function (err) { setStatus("Refresh failed: " + err.message); })
-      .then(function () { button.disabled = false; });
-  });
+      .then(function (result) {
+        if (!tornDown) onToolResult(result);
+      })
+      .catch(function (err) {
+        if (!tornDown) setStatus("Refresh failed: " + err.message);
+      })
+      .then(function () {
+        if (!tornDown) button.disabled = false;
+      });
+  }
+
+  document.getElementById("filter").addEventListener("input", onFilterInput);
+  document.getElementById("refresh").addEventListener("click", onRefreshClick);
 
   request("ui/initialize", {
     protocolVersion: PROTOCOL_VERSION,
-    appInfo: { name: "plaky115-board-view", version: "1.0.0" },
+    appInfo: { name: "plaky115-board-view", version: "__PLAKY115_VERSION__" },
     appCapabilities: {},
   }).then(function (result) {
+    if (tornDown) return;
     applyTheme(result && result.hostContext);
     notify("ui/notifications/initialized");
   }).catch(function () {
+    if (tornDown) return;
     setStatus("Could not connect to the host.");
   });
 })();

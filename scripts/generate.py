@@ -14,6 +14,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import re
 import subprocess
@@ -36,9 +37,11 @@ HEADER = """\
 """
 
 MODEL_TARGET = REPO / "src/plaky115/models/generated.py"
+CANONICAL_DECIMAL_ID_PATTERN = r"^(0|[1-9][0-9]*)$"
+INT64_MAX = 9_223_372_036_854_775_807
 
 
-def _widen_int64(node: Any) -> None:
+def _widen_int64(node: Any, *, constrained_strings: bool = False) -> None:
     """Give every int64 integer schema a decimal-string alternative, in place.
 
     The transport decodes JSON integers beyond ±(2**53-1) as exact decimal
@@ -51,16 +54,19 @@ def _widen_int64(node: Any) -> None:
         if mapping.get("type") == "integer" and mapping.get("format") == "int64":
             del mapping["type"]
             del mapping["format"]
-            mapping["anyOf"] = [
-                {"type": "integer", "format": "int64"},
-                {"type": "string"},
-            ]
+            string_branch: dict[str, Any] = {"type": "string"}
+            if constrained_strings:
+                string_branch.update({"pattern": CANONICAL_DECIMAL_ID_PATTERN, "maxLength": 19})
+            integer_branch: dict[str, Any] = {"type": "integer", "format": "int64"}
+            if constrained_strings:
+                integer_branch.update({"minimum": 0, "maximum": INT64_MAX})
+            mapping["anyOf"] = [integer_branch, string_branch]
             return
         for value in mapping.values():
-            _widen_int64(value)
+            _widen_int64(value, constrained_strings=constrained_strings)
     elif isinstance(node, list):
         for value in cast("list[Any]", node):
-            _widen_int64(value)
+            _widen_int64(value, constrained_strings=constrained_strings)
 
 
 def generate_models() -> str:
@@ -123,7 +129,7 @@ def generate_models() -> str:
     # config immediately inside *Request classes.
     def strict_requests(match: re.Match[str]) -> str:
         block = match.group(0)
-        return block.replace('extra="allow"', 'extra="forbid"')
+        return block.replace('extra="allow"', 'extra="forbid", strict=True')
 
     body = re.sub(
         r"class \w+Request\(BaseModel\):\n(?:    .*\n|\n)*?    model_config = ConfigDict\([^)]*\)",
@@ -200,51 +206,300 @@ _QUERY_KWARGS = {
     "parentId": "parent_id",
     "subitemsBehaviour": "subitems_behaviour",
 }
-_QUERY_TYPES = {
-    "page": "int | None = None",
-    "pageSize": "int | None = None",
-    "expand": "list[str] | None = None",
-    "emails": "list[str] | None = None",
-    "status": "str | None = None",
-    "type": "str | None = None",
-    "boardViewId": "int | str | None = None",
-    "parentId": "int | str | None = None",
-    "subitemsBehaviour": "str | None = None",
-}
-
 _OUTPUT_BY_ROOT = {
     "page": "PagedOutput",
     "array": "ListOutput",
     "object": "EntityOutput",
     "void": "OkOutput",
 }
+_HIGH_VALUE_OUTPUTS = {
+    "getItemFileDownload": "DownloadLinkOutput",
+}
 
 # Positional-first SDK methods (single ID argument).
 _POSITIONAL_SINGLE_ID = {"getSpace": "spaceId", "getTeam": "teamId"}
+_LOCAL_REQUEST_ANNOTATIONS = {
+    # The contract defines item field keys dynamically, so there is no named
+    # component schema to import. The generated local type still makes the
+    # outer request object and its keys explicit at the MCP boundary.
+    "ItemFieldsUpdateRequest": "dict[StrictStr, Any]",
+}
 
 
 def snake_case(value: str) -> str:
     return _SNAKE.sub("_", value).lower()
 
 
+def _output_model(descriptor: dict[str, Any]) -> str:
+    return _HIGH_VALUE_OUTPUTS.get(
+        descriptor["operationId"], _OUTPUT_BY_ROOT[descriptor["success"]["root"]]
+    )
+
+
+def _description_name(name: str) -> str:
+    words = _SNAKE.sub(" ", name).lower()
+    return words[:-3] + " ID" if words.endswith(" id") else words
+
+
+def _raw_description(descriptor: dict[str, Any]) -> str:
+    """Build a compact, deterministic description from canonical metadata."""
+    root = descriptor["success"]["root"]
+    if descriptor["mutation"]:
+        result_sentence = f"{descriptor['summary']}; it performs the requested change."
+    elif root == "page":
+        result_sentence = f"{descriptor['summary']}; it returns a paginated result."
+    elif root == "array":
+        result_sentence = f"{descriptor['summary']}; it returns a list result."
+    elif root == "void":
+        result_sentence = f"{descriptor['summary']}; it returns a completion result."
+    else:
+        result_sentence = f"{descriptor['summary']}; it returns the requested result."
+
+    identifiers = [
+        _description_name(parameter["name"])
+        for parameter in descriptor["parameters"]
+        if parameter["in"] == "path"
+    ]
+    filters = [
+        _description_name(parameter["name"])
+        for parameter in descriptor["parameters"]
+        if parameter["in"] == "query"
+    ]
+    required = ", ".join(identifiers) if identifiers else "no identifiers"
+    scopes = " and ".join(descriptor["scopes"])
+    filter_note = f" Optional filters: {', '.join(filters)}." if filters else ""
+    requirement_sentence = f"Requires {required} and {scopes} scope.{filter_note}"
+
+    if descriptor["mutation"]:
+        safety_sentence = (
+            "This performs a live write with no dry-run; if a failure is ambiguous, "
+            "inspect the receipt and do not repeat blindly."
+        )
+    elif "pagination" in descriptor:
+        safety_sentence = "Use page and pageSize to continue the result set."
+    else:
+        safety_sentence = "This operation is read-only."
+    return " ".join((result_sentence, requirement_sentence, safety_sentence))
+
+
+def _annotation_for_schema(schema: dict[str, Any], *, path: bool = False) -> str:
+    """Return a strict handler annotation from the canonical JSON schema."""
+    if path and schema.get("format") == "int64":
+        return "CanonicalId"
+    if schema.get("format") == "int64":
+        return "CanonicalId"
+    if schema.get("type") == "integer":
+        return "StrictInt"
+    if schema.get("type") == "array":
+        item = cast("dict[str, Any]", schema.get("items", {}))
+        return f"list[{_annotation_for_schema(item)}]"
+    values = schema.get("enum")
+    if isinstance(values, list) and values:
+        return "Literal[" + ", ".join(repr(value) for value in cast("list[str]", values)) + "]"
+    return "StrictStr"
+
+
+def _field_annotation(parameter: dict[str, Any], *, optional: bool = False) -> str:
+    schema = cast("dict[str, Any]", parameter["schema"])
+    annotation = _annotation_for_schema(schema, path=parameter.get("in") == "path")
+    description = str(parameter.get("description", ""))
+    field = f"Field(description={description!r})" if description else "Field()"
+    if optional:
+        return f"Annotated[{annotation} | None, {field}] = None"
+    return f"Annotated[{annotation}, {field}]"
+
+
 def _handler_params(descriptor: dict[str, Any]) -> list[str]:
     params: list[str] = []
     for parameter in descriptor["parameters"]:
         if parameter["in"] == "path":
-            kind = "str" if parameter["name"] == "itemFieldKey" else "int | str"
-            params.append(f"{parameter['name']}: {kind}")
+            params.append(f"{parameter['name']}: {_field_annotation(parameter)}")
     if descriptor["operationId"] == "uploadItemFile":
-        params.extend(["fileBase64: str", "fileName: str", "contentType: str | None = None"])
+        params.extend(
+            [
+                "fileBase64: Annotated[StrictStr, "
+                'Field(description="Canonical base64 file data.")]',
+                "fileName: Annotated[StrictStr, Field("
+                'description="Upload filename (1-255 UTF-8 bytes; no path separators).")]',
+                "contentType: Annotated[StrictStr | None, "
+                'Field(description="Optional RFC media type.")] = None',
+            ]
+        )
     elif descriptor["request"]["kind"] == "json":
-        params.append("body: dict[str, Any]")
+        model = str(descriptor["request"]["model"])
+        params.append(f"body: {_LOCAL_REQUEST_ANNOTATIONS.get(model, model)}")
     optional: list[str] = []
     for parameter in descriptor["parameters"]:
         if parameter["in"] == "query":
-            optional.append(f"{parameter['name']}: {_QUERY_TYPES[parameter['name']]}")
+            optional.append(f"{parameter['name']}: {_field_annotation(parameter, optional=True)}")
     if "pagination" in descriptor:
-        optional.append("page: int | None = None")
-        optional.append("pageSize: int | None = None")
+        optional.extend(
+            [
+                "page: Annotated[StrictInt | None, "
+                'Field(description="One-based page number.", ge=1)] = None',
+                "pageSize: Annotated[StrictInt | None, "
+                'Field(description="Positive page size.", ge=1)] = None',
+            ]
+        )
     return params + optional
+
+
+def _schema_from_descriptor_parameter(parameter: dict[str, Any]) -> dict[str, Any]:
+    schema = copy.deepcopy(cast("dict[str, Any]", parameter["schema"]))
+    if schema.get("format") == "int64":
+        schema = {
+            "oneOf": [
+                {"type": "integer", "format": "int64", "minimum": 0, "maximum": INT64_MAX},
+                {
+                    "type": "string",
+                    "pattern": CANONICAL_DECIMAL_ID_PATTERN,
+                    "maxLength": 19,
+                },
+            ]
+        }
+    if parameter.get("description"):
+        schema["description"] = parameter["description"]
+    return schema
+
+
+def _body_schema(model_name: str) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Copy the contract body schema and only the component refs it needs."""
+    spec = json.loads(SPEC.read_text(encoding="utf-8"))
+    _widen_int64(spec, constrained_strings=True)
+    components = cast("dict[str, Any]", spec["components"]["schemas"])
+    if model_name in _LOCAL_REQUEST_ANNOTATIONS:
+        return (
+            {
+                "type": "object",
+                "additionalProperties": True,
+                "description": "Item field values keyed by canonical field key or field title.",
+            },
+            {},
+        )
+    definitions: dict[str, Any] = {}
+
+    def rewrite(node: Any) -> Any:
+        if isinstance(node, dict):
+            value = cast("dict[str, Any]", node)
+            ref = value.get("$ref")
+            if isinstance(ref, str) and ref.startswith("#/components/schemas/"):
+                name = ref.rsplit("/", 1)[-1]
+                if name not in definitions:
+                    definitions[name] = {}
+                    definitions[name] = rewrite(copy.deepcopy(components[name]))
+                return {"$ref": f"#/$defs/{name}"}
+            return {key: rewrite(item) for key, item in value.items()}
+        if isinstance(node, list):
+            return [rewrite(item) for item in cast("list[Any]", node)]
+        return node
+
+    body = cast("dict[str, Any]", rewrite(copy.deepcopy(components[model_name])))
+    _allow_null_for_optional_properties(body)
+    for definition in definitions.values():
+        _allow_null_for_optional_properties(definition)
+    if body.get("type") == "object":
+        # The generated request model rejects unknown top-level properties.
+        # Nested maps retain their contract-defined additional-property rules.
+        body["additionalProperties"] = False
+    return body, definitions
+
+
+def _allows_null(schema: dict[str, Any]) -> bool:
+    if schema.get("type") == "null":
+        return True
+    if isinstance(schema.get("type"), list) and "null" in schema["type"]:
+        return True
+    for key in ("anyOf", "oneOf"):
+        variants = schema.get(key)
+        if isinstance(variants, list) and any(
+            isinstance(branch, dict) and _allows_null(cast("dict[str, Any]", branch))
+            for branch in cast("list[Any]", variants)
+        ):
+            return True
+    return False
+
+
+def _allow_null_for_optional_properties(node: Any) -> None:
+    if isinstance(node, list):
+        for value in cast("list[Any]", node):
+            _allow_null_for_optional_properties(value)
+        return
+    if not isinstance(node, dict):
+        return
+    mapping = cast("dict[str, Any]", node)
+    properties_value = mapping.get("properties")
+    if isinstance(properties_value, dict):
+        properties = cast("dict[str, Any]", properties_value)
+        required = set(cast("list[str]", mapping.get("required", [])))
+        for name, value in properties.items():
+            if not isinstance(value, dict):
+                continue
+            value_schema = cast("dict[str, Any]", value)
+            if name not in required and value_schema and not _allows_null(value_schema):
+                properties[name] = {"anyOf": [value, {"type": "null"}]}
+        for value in properties.values():
+            _allow_null_for_optional_properties(value)
+    for key, value in mapping.items():
+        if key != "properties":
+            _allow_null_for_optional_properties(value)
+
+
+def _parameters_schema(descriptor: dict[str, Any]) -> dict[str, Any]:
+    """Publish the canonical, strict raw-tool input schema."""
+    properties: dict[str, Any] = {}
+    required: list[str] = []
+    for parameter in descriptor["parameters"]:
+        properties[parameter["name"]] = _schema_from_descriptor_parameter(parameter)
+        if parameter["required"]:
+            required.append(parameter["name"])
+    if descriptor["request"]["kind"] == "json":
+        body, definitions = _body_schema(str(descriptor["request"]["model"]))
+        properties["body"] = body
+        required.append("body")
+    else:
+        definitions = {}
+    if descriptor["operationId"] == "uploadItemFile":
+        properties.update(
+            {
+                "fileBase64": {
+                    "type": "string",
+                    "description": (
+                        "Canonical base64 file data; decoded bytes are limited by "
+                        "the SDK hard ceiling."
+                    ),
+                },
+                "fileName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255,
+                    "description": (
+                        "Upload filename without path separators or control characters."
+                    ),
+                },
+                "contentType": {"type": "string", "description": "Optional RFC media type."},
+            }
+        )
+        required.extend(["fileBase64", "fileName"])
+    if "pagination" in descriptor:
+        properties["page"] = {
+            "type": "integer",
+            "minimum": 1,
+            "description": "One-based page number.",
+        }
+        properties["pageSize"] = {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Positive page size.",
+        }
+    schema: dict[str, Any] = {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": properties,
+        "required": required,
+    }
+    if definitions:
+        schema["$defs"] = definitions
+    return schema
 
 
 def _sdk_call(descriptor: dict[str, Any]) -> str:
@@ -272,6 +527,8 @@ def _sdk_call(descriptor: dict[str, Any]) -> str:
         args.append("content_type=upload.media_type")
     elif descriptor["request"]["kind"] == "json":
         args.append("body=body")
+    if descriptor["mutation"]:
+        args.append("options=RequestOverrides(on_dispatch=tracker.request_started)")
     call = f"client.{resource}.{method}({', '.join(args)})"
     if op_id in ("createItem", "updateItemFields"):
         # These SDK methods can also return DryRunPlan; the raw tool always
@@ -328,7 +585,7 @@ RAW_HEADER = HEADER + (
 def _generate_raw_tool(descriptor: dict[str, Any]) -> str:
     op_id = descriptor["operationId"]
     module_doc = descriptor["summary"]
-    output = _OUTPUT_BY_ROOT[descriptor["success"]["root"]]
+    output = _output_model(descriptor)
     params = _handler_params(descriptor)
     param_lines = "".join(f"        {p},\n" for p in params)
     is_mutation = descriptor["mutation"]
@@ -346,22 +603,38 @@ def _generate_raw_tool(descriptor: dict[str, Any]) -> str:
     lines.append("")
     lines.append("import asyncio")
     needs_cast = op_id in ("createItem", "updateItemFields")
-    needs_any = descriptor["request"]["kind"] == "json"
+    needs_any = descriptor["request"].get("model") in _LOCAL_REQUEST_ANNOTATIONS or needs_cast
+    needs_literal = any(
+        parameter["schema"].get("enum")
+        or cast("dict[str, Any]", parameter["schema"].get("items", {})).get("enum")
+        for parameter in descriptor["parameters"]
+    )
     typing_names = ["Annotated"]
     if needs_any:
         typing_names.append("Any")
+    if needs_literal:
+        typing_names.append("Literal")
     if needs_cast:
         typing_names.append("cast")
     lines.append(f"from typing import {', '.join(typing_names)}")
     lines.append("")
     lines.append("from mcp.types import CallToolResult, ToolAnnotations")
+    lines.append("from pydantic import Field, StrictInt, StrictStr")
     lines.append("")
     lines.append("from plaky115.async_client import AsyncPlakyClient")
     lines.append("from plaky115.errors import PlakyError")
+    model = descriptor["request"].get("model")
+    if (
+        descriptor["request"]["kind"] == "json"
+        and isinstance(model, str)
+        and model not in _LOCAL_REQUEST_ANNOTATIONS
+    ):
+        lines.append(f"from plaky115.models.generated import {model}")
     if upload:
         lines.append("from plaky115.runtime.upload import Base64UploadInput, normalize_upload")
     if is_mutation:
         lines.append("from plaky115.runtime.mutations import AttemptTracker")
+        lines.append("from plaky115.resources._common import RequestOverrides")
     lines.append("from plaky115_mcp.compaction import (")
     compaction_imports: list[str] = sorted(
         {
@@ -384,6 +657,7 @@ def _generate_raw_tool(descriptor: dict[str, Any]) -> str:
     lines.append("from plaky115_mcp.errors import envelope_wire, error_envelope, internal_error")
     lines.append(f"from plaky115_mcp.outputs import {output}")
     lines.append("from plaky115_mcp.registry import ToolSpec")
+    lines.append("from plaky115_mcp.workflow_models import CanonicalId")
     lines.append("")
     lines.append("")
     lines.append("def build_tool(client: AsyncPlakyClient) -> ToolSpec:")
@@ -405,8 +679,6 @@ def _generate_raw_tool(descriptor: dict[str, Any]) -> str:
             "file_name=fileName, content_type=contentType)"
         )
         lines.append("            )")
-    if is_mutation:
-        lines.append("            tracker.request_started()")
     lines.append(f"            result = {_sdk_call(descriptor)}")
     if is_mutation:
         lines.append("            tracker.completed()")
@@ -424,13 +696,14 @@ def _generate_raw_tool(descriptor: dict[str, Any]) -> str:
     )
     lines.append("        except Exception as exc:  # controlled internal-error path")
     lines.append("            return error_result(")
-    lines.append('                envelope_wire(internal_error(exc)), "Internal server error."')
+    lines.append(f"                envelope_wire(internal_error(exc, {tracker_ref})),")
+    lines.append('                "Internal server error.",')
     lines.append("            )")
     lines.append("")
     lines.append("    return ToolSpec(")
     lines.append(f'        name="{descriptor["mcpName"]}",')
     lines.append(f'        title="{descriptor["mcpTitle"]}",')
-    description = descriptor["description"].replace("\\", "\\\\").replace('"', '\\"')
+    description = _raw_description(descriptor).replace("\\", "\\\\").replace('"', '\\"')
     description = " ".join(description.split())
     lines.append(f'        description="{description}",')
     lines.append(f"        handler={snake_case(op_id)},")
@@ -442,6 +715,7 @@ def _generate_raw_tool(descriptor: dict[str, Any]) -> str:
     lines.append(f"            open_world_hint={annotations['openWorld']},")
     lines.append("        ),")
     lines.append('        kind="raw",')
+    lines.append(f"        parameters={_parameters_schema(descriptor)!r},")
     lines.append("    )")
     lines.append("")
     return "\n".join(lines)

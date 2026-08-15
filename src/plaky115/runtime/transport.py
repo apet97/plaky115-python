@@ -22,6 +22,7 @@ from plaky115.http import (
     ApiResponse,
     RequestOptions,
     RequestSpec,
+    SyncByteStream,
     build_base_headers,
     resolve_api_key,
     resolve_headers,
@@ -47,14 +48,12 @@ def _read_bounded_sync(response: httpx2.Response, limit: int) -> bytes:
 
     content_length = response.headers.get("content-length")
     if content_length and content_length.isdigit() and int(content_length) > limit:
-        response.close()
         raise PlakyResponseTooLargeError(limit)
     chunks: list[bytes] = []
     total = 0
     for chunk in response.iter_bytes():
         total += len(chunk)
         if total > limit:
-            response.close()
             raise PlakyResponseTooLargeError(limit)
         chunks.append(chunk)
     return b"".join(chunks)
@@ -77,6 +76,9 @@ def sync_request_with_response(
     attempt = 0
     while True:
         retry_after_header: str | None = None
+        phase = "preflight"
+        response: httpx2.Response | None = None
+        response_transferred = False
         try:
             api_key = resolve_api_key(options.api_key)
             user_headers = resolve_headers(options.headers)
@@ -121,85 +123,82 @@ def sync_request_with_response(
             for managed in ("accept", "user-agent"):
                 if managed not in headers and managed in request.headers:
                     del request.headers[managed]
-            try:
-                response = client.send(request, stream=True, follow_redirects=False)
-            except httpx2.TimeoutException as exc:
-                raise PlakyTimeoutError() from exc
-            except (httpx2.HTTPError, OSError) as exc:
-                raise PlakyConnectionError() from exc
+            phase = "request"
+            if options.on_dispatch is not None:
+                options.on_dispatch()
+            response = client.send(request, stream=True, follow_redirects=False)
+            phase = "response"
+            if options.rate_limit_tracker is not None:
+                options.rate_limit_tracker.observe(dict(response.headers))
 
-            try:
-                if options.rate_limit_tracker is not None:
-                    options.rate_limit_tracker.observe(dict(response.headers))
+            status = response.status_code
+            request_id = get_request_id(dict(response.headers))
 
-                status = response.status_code
-                request_id = get_request_id(dict(response.headers))
-
-                if not (200 <= status <= 299):
-                    if should_retry_response(method, status, attempt, max_retries):
-                        retry_after_header = response.headers.get("retry-after")
-                        response.close()
-                        raise _RetrySignal()
-                    raw = _read_bounded_sync(response, options.max_response_bytes)
-                    error_body = parse_error_body(raw)
-                    if options.response_hook is not None:
-                        options.response_hook(
-                            {
-                                "url": url,
-                                "status": status,
-                                "headers": dict(response.headers),
-                                "body": error_body,
-                                "operation_id": operation_id,
-                            }
-                        )
-                    raise classify(
-                        status=status,
-                        method=method,
-                        url=url,
-                        headers=dict(response.headers),
-                        body=error_body,
-                        request_id=request_id,
-                        retry_after_ms=parse_retry_after(response.headers.get("retry-after")),
-                    )
-
-                if spec.response_type == "stream":
-                    return ApiResponse(
-                        data=response.iter_bytes(),
-                        status=status,
-                        headers=dict(response.headers),
-                        url=url,
-                        request_id=request_id,
-                    )
+            if not (200 <= status <= 299):
+                if should_retry_response(method, status, attempt, max_retries):
+                    retry_after_header = response.headers.get("retry-after")
+                    raise _RetrySignal()
                 raw = _read_bounded_sync(response, options.max_response_bytes)
-                data = parse_body(raw, spec.response_type, status, request_id)
+                error_body = parse_error_body(raw)
                 if options.response_hook is not None:
                     options.response_hook(
                         {
                             "url": url,
                             "status": status,
                             "headers": dict(response.headers),
-                            "body": data,
+                            "body": error_body,
                             "operation_id": operation_id,
                         }
                     )
+                raise classify(
+                    status=status,
+                    method=method,
+                    url=url,
+                    headers=dict(response.headers),
+                    body=error_body,
+                    request_id=request_id,
+                    retry_after_ms=parse_retry_after(response.headers.get("retry-after")),
+                )
+
+            if spec.response_type == "stream":
+                response_transferred = True
                 return ApiResponse(
-                    data=data,
+                    data=SyncByteStream(response),
                     status=status,
                     headers=dict(response.headers),
                     url=url,
                     request_id=request_id,
                 )
-            finally:
-                if spec.response_type != "stream":
-                    response.close()
+            raw = _read_bounded_sync(response, options.max_response_bytes)
+            data = parse_body(raw, spec.response_type, status, request_id)
+            if options.response_hook is not None:
+                options.response_hook(
+                    {
+                        "url": url,
+                        "status": status,
+                        "headers": dict(response.headers),
+                        "body": data,
+                        "operation_id": operation_id,
+                    }
+                )
+            return ApiResponse(
+                data=data,
+                status=status,
+                headers=dict(response.headers),
+                url=url,
+                request_id=request_id,
+            )
         except _RetrySignal:
             pass
-        except PlakyTimeoutError:
-            if not can_retry_error(method, attempt, max_retries):
-                raise
-        except PlakyConnectionError:
-            if not can_retry_error(method, attempt, max_retries):
-                raise
+        except httpx2.TimeoutException as exc:
+            if phase != "request" or not can_retry_error(method, attempt, max_retries):
+                raise PlakyTimeoutError() from exc
+        except (httpx2.HTTPError, OSError) as exc:
+            if phase != "request" or not can_retry_error(method, attempt, max_retries):
+                raise PlakyConnectionError() from exc
+        finally:
+            if response is not None and not response_transferred:
+                response.close()
 
         time.sleep(retry_delay_ms(retry_after_header, attempt) / 1000)
         attempt += 1

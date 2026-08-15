@@ -75,14 +75,30 @@ def merge_headers_into(target: dict[str, str], source: Mapping[str, str] | None)
 def assert_trusted_request_url(request_url: str, server_url: str) -> None:
     """A request hook may rewrite path/query but never the trusted origin."""
     try:
-        rewritten = urlsplit(request_url)
-        trusted = urlsplit(server_url)
-        if not rewritten.scheme or not rewritten.netloc:
-            raise ValueError
+        rewritten = _normalized_origin(request_url)
+        trusted = _normalized_origin(server_url)
     except ValueError:
         raise ValueError("PlakyClient: request hook returned an invalid URL") from None
-    if (rewritten.scheme.lower(), rewritten.netloc.lower()) != (
-        trusted.scheme.lower(),
-        trusted.netloc.lower(),
-    ):
+    if rewritten != trusted:
         raise ValueError("PlakyClient: request hook must not change the trusted server origin")
+
+
+def _normalized_origin(url: str) -> tuple[str, str, int]:
+    """Return a canonical scheme, IDNA hostname, and effective port tuple."""
+    parts = urlsplit(url)
+    if parts.username is not None or parts.password is not None:
+        raise ValueError
+    scheme = parts.scheme.lower()
+    hostname = parts.hostname
+    if not scheme or not hostname:
+        raise ValueError
+    normalized_host = hostname.encode("idna").decode("ascii").lower()
+    port = parts.port
+    if port is None:
+        if scheme == "https":
+            port = 443
+        elif scheme == "http":
+            port = 80
+        else:
+            raise ValueError
+    return scheme, normalized_host, port

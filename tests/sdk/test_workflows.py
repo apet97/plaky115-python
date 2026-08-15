@@ -34,6 +34,7 @@ from plaky115 import (
     tag_field,
     timeline_field,
 )
+from plaky115.resources._common import RequestOverrides
 from plaky115.runtime.chunks import PageCursor
 from plaky115.workflows.csv import render_items_csv
 
@@ -395,6 +396,43 @@ async def test_bulk_update_throw_on_error_carries_receipts() -> None:
             )
     assert info.value.failed_index == 0
     assert len(info.value.receipts) == 2
+
+
+async def test_bulk_dispatch_composes_caller_callback_before_internal_receipt_mark() -> None:
+    dispatched: list[str] = []
+
+    def caller_callback() -> None:
+        dispatched.append("caller")
+
+    async with AsyncPlakyClient(
+        api_key="plk_x", max_retries=0, transport=httpx2.MockTransport(bulk_handler(None))
+    ) as client:
+        receipts = await async_bulk_update_items(
+            client,
+            space=1,
+            board=7,
+            updates=[{"item_id": 3, "body": {}}],
+            options=RequestOverrides(on_dispatch=caller_callback),
+        )
+    assert dispatched == ["caller"]
+    assert receipts[0].status == "completed"
+
+    def rejected_callback() -> None:
+        raise RuntimeError("reject before dispatch")
+
+    async with AsyncPlakyClient(
+        api_key="plk_x", max_retries=0, transport=httpx2.MockTransport(bulk_handler(None))
+    ) as client:
+        receipts = await async_bulk_update_items(
+            client,
+            space=1,
+            board=7,
+            updates=[{"item_id": 3, "body": {}}],
+            options=RequestOverrides(on_dispatch=rejected_callback),
+        )
+    assert receipts[0].status == "failed"
+    assert receipts[0].attempted is False
+    assert receipts[0].phase == "preflight"
 
 
 # --- export / workspace map ------------------------------------------------------

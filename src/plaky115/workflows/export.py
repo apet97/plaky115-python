@@ -82,6 +82,18 @@ def _validate_bound(value: int, name: str) -> int:
     return value
 
 
+def _validate_format(value: str) -> ExportFormat:
+    if value not in ("jsonl", "csv"):
+        raise ValueError("format must be one of: jsonl, csv")
+    return value
+
+
+def _validate_csv_safety(value: str) -> CsvSafety:
+    if value not in ("spreadsheet", "raw"):
+        raise ValueError("csv_safety must be one of: spreadsheet, raw")
+    return value
+
+
 def _item_dict(item: Any) -> dict[str, Any]:
     if hasattr(item, "model_dump"):
         return item.model_dump(mode="json", by_alias=True, exclude_none=True)
@@ -124,6 +136,8 @@ async def async_export_items(
     max_bytes: int = MAX_MATERIALIZED_BYTES,
     options: RequestOverrides | None = None,
 ) -> str:
+    format = _validate_format(format)
+    csv_safety = _validate_csv_safety(csv_safety)
     _validate_bound(max_items, "maxItems")
     _validate_bound(max_bytes, "maxBytes")
     space_id, board_id = await _async_ids(client, space, board, options)
@@ -147,6 +161,8 @@ def export_items(
     max_bytes: int = MAX_MATERIALIZED_BYTES,
     options: RequestOverrides | None = None,
 ) -> str:
+    format = _validate_format(format)
+    csv_safety = _validate_csv_safety(csv_safety)
     _validate_bound(max_items, "maxItems")
     _validate_bound(max_bytes, "maxBytes")
     space_id, board_id = _sync_ids(client, space, board, options)
@@ -376,6 +392,8 @@ async def async_read_item_export_chunk(
     include_header: bool = True,
     options: RequestOverrides | None = None,
 ) -> ItemExportChunk:
+    format = _validate_format(format)
+    csv_safety = _validate_csv_safety(csv_safety)
     space_id, board_id = await _async_ids(client, space, board, options)
 
     if format == "jsonl":
@@ -502,6 +520,8 @@ async def async_iterate_item_export_chunks(
     max_bytes: int = DEFAULT_CHUNK_MAX_BYTES,
     options: RequestOverrides | None = None,
 ) -> AsyncIterator[ItemExportChunk]:
+    format = _validate_format(format)
+    csv_safety = _validate_csv_safety(csv_safety)
     cursor: PageCursor | None = None
     first = True
     if format == "jsonl":
@@ -562,6 +582,8 @@ def read_item_export_chunk(
     include_header: bool = True,
     options: RequestOverrides | None = None,
 ) -> ItemExportChunk:
+    format = _validate_format(format)
+    csv_safety = _validate_csv_safety(csv_safety)
     space_id, board_id = _sync_ids(client, space, board, options)
 
     if format == "jsonl":
@@ -665,6 +687,8 @@ def iterate_item_export_chunks(
     max_bytes: int = DEFAULT_CHUNK_MAX_BYTES,
     options: RequestOverrides | None = None,
 ) -> Iterator[ItemExportChunk]:
+    format = _validate_format(format)
+    csv_safety = _validate_csv_safety(csv_safety)
     cursor: PageCursor | None = None
     first = True
     if format == "jsonl":

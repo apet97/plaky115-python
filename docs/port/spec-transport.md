@@ -125,13 +125,14 @@ and `client/client.ts`. This is the parity contract for the Python port.
 
 ## Timeout
 
-- Default 30 s; 0 disables; max 2_147_483.647 s. PER ATTEMPT (fresh budget
-  per retry; backoff outside). Covers providers, hooks, I/O, body read,
-  parse. Cancellation cause wins over timeout: user cancel →
-  PlakyCancelledError("Request was aborted."); timer →
-  PlakyTimeoutError("Request timed out."); other →
-  PlakyConnectionError("Connection error while communicating with the
-  Plaky API.").
+- Default 30 s; 0 disables; max 2_147_483.647 s. Async uses a fresh total
+  per-attempt budget across providers, hooks, I/O, bounded body reads, parsing,
+  and response hooks. Async attempts use one total timeout budget; backoff is outside it.
+  Sync uses the HTTP client's native I/O timeout. Sync cannot safely interrupt
+  a local provider or hook. A GET timeout or connection failure retries only before
+  response headers arrive. After headers, body, decode, and hook failures do
+  not retry. External task cancellation remains `asyncio.CancelledError`.
+  Native HTTP timeouts map to `PlakyTimeoutError("Request timed out.")`.
 
 ## with_retries(fn, kind="read", max_retries=2, base_delay_ms=250)
 

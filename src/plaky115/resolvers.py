@@ -12,9 +12,10 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
 
-from plaky115.errors import PlakyAmbiguousMatchError, PlakyNotFoundError
+from plaky115.errors import PlakyAmbiguousMatchError, PlakyBoundedResultError, PlakyNotFoundError
 from plaky115.ids import INT64_MAX
 from plaky115.models import Board, Item, ItemFile, ItemGroup, Space, Team, User
+from plaky115.pagination import DEFAULT_PAGE_SIZE, Page
 from plaky115.resources._common import RequestOverrides
 
 if TYPE_CHECKING:
@@ -147,6 +148,25 @@ def _pick(items: Sequence[Any], match: _RefMatch, label: str) -> Any:
     raise _local_not_found(f"{label}: empty ref")
 
 
+def _complete_page(page: Page[Any], label: str) -> list[Any]:
+    """Return one exhaustive page or report that text resolution is unsafe."""
+    if page.has_more:
+        raise PlakyBoundedResultError(
+            f"{label} reference is inconclusive because more results exist; use an exact ID "
+            "or a narrower reference."
+        )
+    return list(page.data)
+
+
+def _pick_bounded_page(page: Page[Any], match: _RefMatch, label: str) -> Any:
+    if match.id is not None:
+        try:
+            return _pick(page.data, match, label)
+        except PlakyNotFoundError:
+            pass
+    return _pick(_complete_page(page, label), match, label)
+
+
 # ----------------------------------------------------------------------------
 # Async resolvers
 # ----------------------------------------------------------------------------
@@ -164,7 +184,8 @@ async def async_resolve_space(
                 raise
             raise _local_not_found(f"space not found: id={match.id}") from exc
         return _pick([result], match, "space")
-    return _pick(await client.spaces.list_all(options=options), match, "space")
+    page = await client.spaces.list(page=1, page_size=DEFAULT_PAGE_SIZE, options=options)
+    return _pick(_complete_page(page, "space"), match, "space")
 
 
 async def async_resolve_space_and_board(
@@ -185,8 +206,10 @@ async def async_resolve_space_and_board(
                 raise
             raise _local_not_found(f"board not found: id={match.id}") from exc
         return resolved_space, _pick([result], match, "board")
-    boards = await client.boards.list_all(space_id=space_id, options=options)
-    return resolved_space, _pick(boards, match, "board")
+    page = await client.boards.list(
+        space_id=space_id, page=1, page_size=DEFAULT_PAGE_SIZE, options=options
+    )
+    return resolved_space, _pick(_complete_page(page, "board"), match, "board")
 
 
 async def async_resolve_board(
@@ -205,8 +228,10 @@ async def async_resolve_board(
 async def async_resolve_user(
     client: AsyncPlakyClient, ref: EntityRef, options: RequestOverrides | None = None
 ) -> User:
-    # There is no user GET endpoint; even exact IDs resolve from the list.
-    return _pick(await client.users.list_all(options=options), _as_id(ref), "user")
+    # There is no user GET endpoint; one bounded page is the only safe fallback.
+    match = _as_id(ref)
+    page = await client.users.list(page=1, page_size=DEFAULT_PAGE_SIZE, options=options)
+    return _pick_bounded_page(page, match, "user")
 
 
 async def async_resolve_team(
@@ -221,7 +246,8 @@ async def async_resolve_team(
                 raise
             raise _local_not_found(f"team not found: id={match.id}") from exc
         return _pick([result], match, "team")
-    return _pick(await client.teams.list_all(options=options), match, "team")
+    page = await client.teams.list(page=1, page_size=DEFAULT_PAGE_SIZE, options=options)
+    return _pick(_complete_page(page, "team"), match, "team")
 
 
 async def async_resolve_item(
@@ -266,7 +292,10 @@ async def async_resolve_items_in_board(
             return _pick([result], _RefMatch(id=item_id), "item")
 
         return list(await asyncio.gather(*(get_one(cast(str, ref.id)) for ref in refs)))
-    listing = await client.items.list_all(space_id=space_id, board_id=board_id, options=options)
+    page = await client.items.list(
+        space_id=space_id, board_id=board_id, page=1, page_size=DEFAULT_PAGE_SIZE, options=options
+    )
+    listing = _complete_page(page, "item")
     return [_pick(listing, ref, "item") for ref in refs]
 
 
@@ -289,10 +318,10 @@ async def async_resolve_item_group_in_board(
                 raise
             raise _local_not_found(f"item group not found: id={match.id}") from exc
         return _pick([result], match, "item group")
-    groups = await client.item_groups.list_all(
-        space_id=space_id, board_id=board_id, options=options
+    page = await client.item_groups.list(
+        space_id=space_id, board_id=board_id, page=1, page_size=DEFAULT_PAGE_SIZE, options=options
     )
-    return _pick(groups, match, "item group")
+    return _pick(_complete_page(page, "item group"), match, "item group")
 
 
 async def async_resolve_item_file_on_item(
@@ -342,7 +371,8 @@ def resolve_space(
                 raise
             raise _local_not_found(f"space not found: id={match.id}") from exc
         return _pick([result], match, "space")
-    return _pick(client.spaces.list_all(options=options), match, "space")
+    page = client.spaces.list(page=1, page_size=DEFAULT_PAGE_SIZE, options=options)
+    return _pick(_complete_page(page, "space"), match, "space")
 
 
 def resolve_space_and_board(
@@ -363,8 +393,10 @@ def resolve_space_and_board(
                 raise
             raise _local_not_found(f"board not found: id={match.id}") from exc
         return resolved_space, _pick([result], match, "board")
-    boards = client.boards.list_all(space_id=space_id, options=options)
-    return resolved_space, _pick(boards, match, "board")
+    page = client.boards.list(
+        space_id=space_id, page=1, page_size=DEFAULT_PAGE_SIZE, options=options
+    )
+    return resolved_space, _pick(_complete_page(page, "board"), match, "board")
 
 
 def resolve_board(
@@ -380,7 +412,9 @@ def resolve_board(
 def resolve_user(
     client: PlakyClient, ref: EntityRef, options: RequestOverrides | None = None
 ) -> User:
-    return _pick(client.users.list_all(options=options), _as_id(ref), "user")
+    match = _as_id(ref)
+    page = client.users.list(page=1, page_size=DEFAULT_PAGE_SIZE, options=options)
+    return _pick_bounded_page(page, match, "user")
 
 
 def resolve_team(
@@ -395,7 +429,8 @@ def resolve_team(
                 raise
             raise _local_not_found(f"team not found: id={match.id}") from exc
         return _pick([result], match, "team")
-    return _pick(client.teams.list_all(options=options), match, "team")
+    page = client.teams.list(page=1, page_size=DEFAULT_PAGE_SIZE, options=options)
+    return _pick(_complete_page(page, "team"), match, "team")
 
 
 def resolve_item(
@@ -439,7 +474,10 @@ def resolve_items_in_board(
                 raise _local_not_found(f"item not found: id={item_id}") from exc
             out.append(_pick([result], ref, "item"))
         return out
-    listing = client.items.list_all(space_id=space_id, board_id=board_id, options=options)
+    page = client.items.list(
+        space_id=space_id, board_id=board_id, page=1, page_size=DEFAULT_PAGE_SIZE, options=options
+    )
+    listing = _complete_page(page, "item")
     return [_pick(listing, ref, "item") for ref in refs]
 
 
@@ -462,8 +500,10 @@ def resolve_item_group_in_board(
                 raise
             raise _local_not_found(f"item group not found: id={match.id}") from exc
         return _pick([result], match, "item group")
-    groups = client.item_groups.list_all(space_id=space_id, board_id=board_id, options=options)
-    return _pick(groups, match, "item group")
+    page = client.item_groups.list(
+        space_id=space_id, board_id=board_id, page=1, page_size=DEFAULT_PAGE_SIZE, options=options
+    )
+    return _pick(_complete_page(page, "item group"), match, "item group")
 
 
 def resolve_item_file_on_item(

@@ -13,9 +13,11 @@ from __future__ import annotations
 
 # pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
 # pyright: reportUnknownArgumentType=false
+import argparse
 import hashlib
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -28,6 +30,7 @@ SOURCE_CHECKOUT = Path(
 )
 
 EXPECTED_OPERATION_COUNT = 32
+EXPECTED_SOURCE_COMMIT = "33ae2926aa696f36d9663d44f914d42d9aadc53f"
 
 CURATED_TOOLS = [
     "plaky_search_docs",
@@ -65,7 +68,35 @@ def check(condition: bool, message: str) -> None:
         failures.append(message)
 
 
+def _source_head(source: Path) -> str | None:
+    """Return the checkout HEAD without exposing command output."""
+    result = subprocess.run(
+        ["git", "-C", str(source), "rev-parse", "HEAD"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def _source_is_clean(source: Path) -> bool:
+    result = subprocess.run(
+        ["git", "-C", str(source), "status", "--porcelain", "--untracked-files=all"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    return result.returncode == 0 and not result.stdout.strip()
+
+
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--require-source",
+        action="store_true",
+        help="require the exact clean pinned source checkout for provenance verification",
+    )
+    args = parser.parse_args()
     expected = json.loads((REPO / "contract/expected-operations.json").read_text(encoding="utf-8"))
     ops = expected["operations"]
     method_paths = {(o["method"], o["path"]) for o in ops}
@@ -137,11 +168,19 @@ def main() -> int:
 
     manifest = json.loads((REPO / "contract/source-manifest.json").read_text(encoding="utf-8"))
     check(
-        manifest["sourceCommit"] == "33ae2926aa696f36d9663d44f914d42d9aadc53f",
+        manifest["sourceCommit"] == EXPECTED_SOURCE_COMMIT,
         "source manifest commit mismatch",
     )
     check(manifest["sourceRelease"] == "v1.0.11", "source manifest release mismatch")
     provenance_checked = SOURCE_CHECKOUT.is_dir()
+    if args.require_source:
+        check(provenance_checked, f"required source checkout is unavailable: {SOURCE_CHECKOUT}")
+    if provenance_checked and args.require_source:
+        check(
+            _source_head(SOURCE_CHECKOUT) == EXPECTED_SOURCE_COMMIT,
+            f"source checkout HEAD must equal {EXPECTED_SOURCE_COMMIT}",
+        )
+        check(_source_is_clean(SOURCE_CHECKOUT), "source checkout must be clean")
     if provenance_checked:
         for f in manifest["files"]:
             p = SOURCE_CHECKOUT / f["sourcePath"]

@@ -6,8 +6,8 @@ source (docs/port/spec-transport.md).
 Guarantees:
 - Only GET requests retry (429/5xx/timeout/connection); writes make exactly
   one network attempt even with an idempotency key.
-- The timeout budget is per attempt and covers providers, hooks, network
-  I/O, body reads, and parsing; backoff sleeps sit outside it.
+- Async attempts have one total budget across providers, hooks, I/O, body
+  reads, decoding, and response hooks.
 - Task cancellation propagates; it is never wrapped as a connection error.
 - Non-streaming bodies are bounded; oversized bodies fail without
   materializing the rest.
@@ -31,6 +31,7 @@ from plaky115.errors import (
 )
 from plaky115.http import (
     ApiResponse,
+    AsyncByteStream,
     RequestOptions,
     RequestSpec,
     async_resolve_api_key,
@@ -60,14 +61,12 @@ async def read_bounded(response: httpx2.Response, limit: int) -> bytes:
     """Read a streamed body, stopping before the limit is exceeded."""
     content_length = response.headers.get("content-length")
     if content_length and content_length.isdigit() and int(content_length) > limit:
-        await response.aclose()
         raise PlakyResponseTooLargeError(limit)
     chunks: list[bytes] = []
     total = 0
     async for chunk in response.aiter_bytes():
         total += len(chunk)
         if total > limit:
-            await response.aclose()
             raise PlakyResponseTooLargeError(limit)
         chunks.append(chunk)
     return b"".join(chunks)
@@ -127,6 +126,9 @@ async def async_request_with_response(
     attempt = 0
     while True:
         retry_after_header: str | None = None
+        phase = "preflight"
+        response: httpx2.Response | None = None
+        response_transferred = False
         try:
             async with asyncio.timeout(timeout):
                 api_key = await async_resolve_api_key(options.api_key)
@@ -165,66 +167,30 @@ async def async_request_with_response(
                     content=content,
                     files=files,
                     headers=headers,
+                    timeout=timeout,
                 )
-                # Honor user deletions of SDK-managed headers: the HTTP
-                # client adds its own defaults, which would resurrect them.
+                # Honor user deletions of SDK-managed headers: the HTTP client
+                # adds its own defaults, which would resurrect them.
                 for managed in ("accept", "user-agent"):
                     if managed not in headers and managed in request.headers:
                         del request.headers[managed]
-                try:
-                    response = await client.send(request, stream=True, follow_redirects=False)
-                except httpx2.TimeoutException as exc:
-                    raise PlakyTimeoutError() from exc
-                except (httpx2.HTTPError, OSError) as exc:
-                    raise PlakyConnectionError() from exc
+                phase = "request"
+                if options.on_dispatch is not None:
+                    options.on_dispatch()
+                response = await client.send(request, stream=True, follow_redirects=False)
+                phase = "response"
+                if options.rate_limit_tracker is not None:
+                    options.rate_limit_tracker.observe(dict(response.headers))
 
-                try:
-                    if options.rate_limit_tracker is not None:
-                        options.rate_limit_tracker.observe(dict(response.headers))
+                status = response.status_code
+                request_id = get_request_id(dict(response.headers))
 
-                    status = response.status_code
-                    request_id = get_request_id(dict(response.headers))
-
-                    if not (200 <= status <= 299):
-                        if should_retry_response(method, status, attempt, max_retries):
-                            retry_after_header = response.headers.get("retry-after")
-                            await response.aclose()
-                            raise _RetrySignal()
-                        raw = await read_bounded(response, options.max_response_bytes)
-                        error_body = parse_error_body(raw)
-                        if options.response_hook is not None:
-                            await _maybe_await(
-                                options.response_hook(
-                                    {
-                                        "url": url,
-                                        "status": status,
-                                        "headers": dict(response.headers),
-                                        "body": error_body,
-                                        "operation_id": operation_id,
-                                    }
-                                )
-                            )
-                        retry_after = response.headers.get("retry-after")
-                        raise classify(
-                            status=status,
-                            method=method,
-                            url=url,
-                            headers=dict(response.headers),
-                            body=error_body,
-                            request_id=request_id,
-                            retry_after_ms=parse_retry_after(retry_after),
-                        )
-
-                    if spec.response_type == "stream":
-                        return ApiResponse(
-                            data=response.aiter_bytes(),
-                            status=status,
-                            headers=dict(response.headers),
-                            url=url,
-                            request_id=request_id,
-                        )
+                if not (200 <= status <= 299):
+                    if should_retry_response(method, status, attempt, max_retries):
+                        retry_after_header = response.headers.get("retry-after")
+                        raise _RetrySignal()
                     raw = await read_bounded(response, options.max_response_bytes)
-                    data = parse_body(raw, spec.response_type, status, request_id)
+                    error_body = parse_error_body(raw)
                     if options.response_hook is not None:
                         await _maybe_await(
                             options.response_hook(
@@ -232,31 +198,63 @@ async def async_request_with_response(
                                     "url": url,
                                     "status": status,
                                     "headers": dict(response.headers),
-                                    "body": data,
+                                    "body": error_body,
                                     "operation_id": operation_id,
                                 }
                             )
                         )
+                    retry_after = response.headers.get("retry-after")
+                    raise classify(
+                        status=status,
+                        method=method,
+                        url=url,
+                        headers=dict(response.headers),
+                        body=error_body,
+                        request_id=request_id,
+                        retry_after_ms=parse_retry_after(retry_after),
+                    )
+
+                if spec.response_type == "stream":
+                    response_transferred = True
                     return ApiResponse(
-                        data=data,
+                        data=AsyncByteStream(response, timeout=timeout),
                         status=status,
                         headers=dict(response.headers),
                         url=url,
                         request_id=request_id,
                     )
-                finally:
-                    if spec.response_type != "stream":
-                        await response.aclose()
+                raw = await read_bounded(response, options.max_response_bytes)
+                data = parse_body(raw, spec.response_type, status, request_id)
+                if options.response_hook is not None:
+                    await _maybe_await(
+                        options.response_hook(
+                            {
+                                "url": url,
+                                "status": status,
+                                "headers": dict(response.headers),
+                                "body": data,
+                                "operation_id": operation_id,
+                            }
+                        )
+                    )
+                return ApiResponse(
+                    data=data,
+                    status=status,
+                    headers=dict(response.headers),
+                    url=url,
+                    request_id=request_id,
+                )
         except _RetrySignal:
             pass  # retryable status; fall through to backoff
-        except (TimeoutError, PlakyTimeoutError) as exc:
-            if not can_retry_error(method, attempt, max_retries):
-                if isinstance(exc, PlakyTimeoutError):
-                    raise
+        except (TimeoutError, httpx2.TimeoutException) as exc:
+            if phase != "request" or not can_retry_error(method, attempt, max_retries):
                 raise PlakyTimeoutError() from exc
-        except PlakyConnectionError:
-            if not can_retry_error(method, attempt, max_retries):
-                raise
+        except (httpx2.HTTPError, OSError) as exc:
+            if phase != "request" or not can_retry_error(method, attempt, max_retries):
+                raise PlakyConnectionError() from exc
+        finally:
+            if response is not None and not response_transferred:
+                await response.aclose()
 
         await asyncio.sleep(retry_delay_ms(retry_after_header, attempt) / 1000)
         attempt += 1

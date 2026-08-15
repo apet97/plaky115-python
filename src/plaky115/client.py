@@ -58,6 +58,8 @@ class PlakyClient:
     ) -> None:
         if isinstance(api_key, str) and not api_key.strip():
             raise ValueError("PlakyClient: apiKey is required")
+        if http_client is not None and transport is not None:
+            raise ValueError("PlakyClient: http_client and transport cannot be used together")
         self._api_key = api_key
         self._server_url = normalize_server_url(server_url)
         self._timeout = validate_timeout(timeout)
@@ -138,6 +140,7 @@ class PlakyClient:
             idempotency_key=overrides.idempotency_key if overrides is not None else None,
             request_hook=self._request_hook,
             response_hook=self._response_hook,
+            on_dispatch=overrides.on_dispatch if overrides is not None else None,
             rate_limit_tracker=self.rate_limit,
         )
 

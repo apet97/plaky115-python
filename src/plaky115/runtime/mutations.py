@@ -74,7 +74,7 @@ def transition_receipt(
         receipt,
         status=status,
         phase=phase,
-        attempted=status != "planned",
+        attempted=status in ("request-started", "completed", "ambiguous"),
         may_have_committed=status in ("ambiguous", "request-started"),
         error=mutation_error_summary(error) if error is not None else receipt.error,
     )

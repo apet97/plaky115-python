@@ -27,6 +27,7 @@ from plaky115_mcp.tools.curated.workflow_registry import (
     run_bulk_update,
     run_mutation_workflow,
 )
+from plaky115_mcp.workflow_models import validate_mutation_workflow, validate_read_workflow
 
 
 def build_execute_workflow(client: AsyncPlakyClient) -> ToolSpec:
@@ -34,14 +35,16 @@ def build_execute_workflow(client: AsyncPlakyClient) -> ToolSpec:
         workflow: str,
         args: dict[str, Any],
         ctx: Context,  # type: ignore[type-arg]
-        dryRun: bool = True,
+        dryRun: Any = True,
     ) -> Annotated[CallToolResult, EntityOutput]:
         trackers: list[AttemptTracker] = []
         try:
             if workflow in READ_RUNNERS:
+                workflow, args = validate_read_workflow(workflow, args)
                 text, wire = await READ_RUNNERS[workflow](client, args, ctx)
                 return make_result(text=text, structured=wire)
             if workflow in MUTATION_WORKFLOW_IDS:
+                workflow, args, dryRun = validate_mutation_workflow(workflow, args, dryRun)
                 if workflow == "items.updateFields" and isinstance(args.get("updates"), list):
                     text, wire = await run_bulk_update(client, args, dry_run=dryRun, ctx=ctx)
                     return make_result(text=text, structured=wire)
@@ -57,7 +60,10 @@ def build_execute_workflow(client: AsyncPlakyClient) -> ToolSpec:
             tracker = trackers[0] if trackers else None
             return error_result(envelope_wire(error_envelope(exc, tracker)), str(exc))
         except Exception as exc:
-            return error_result(envelope_wire(internal_error(exc)), "Internal server error.")
+            tracker = trackers[0] if trackers else None
+            return error_result(
+                envelope_wire(internal_error(exc, tracker)), "Internal server error."
+            )
 
     return ToolSpec(
         name="plaky_execute_workflow",

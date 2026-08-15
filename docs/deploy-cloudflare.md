@@ -1,15 +1,21 @@
 # Cloudflare deployment
 
-## Why not a Cloudflare Worker
+## Direct Worker execution is unsupported
 
 This server cannot run on Cloudflare Workers. Workers' Python support runs
 on Pyodide with a restricted package set; the mandated stack — the official
 `mcp` v2 server (Starlette/uvicorn ASGI, `sse-starlette`), `httpx2` socket
 transport, and stateless Streamable HTTP with request-scoped SSE — is not
-available or runnable there, and the implementation plan forbids a second
-HTTP stack or a TypeScript rewrite. A "Worker deployment" of this codebase
-would require a from-scratch TypeScript reimplementation, which is a
+available or runnable there. A direct Worker implementation would be a
 separate product.
+
+## Worker-plus-Container staging is separate
+
+A Worker can be ingress for a Cloudflare Container that runs this Python
+package. That staging topology is owned by a separate repository and its
+deployment, OAuth, identity, and production evidence do not belong to this
+package release. This repository neither deploys it nor claims production
+readiness.
 
 ## Supported Cloudflare routes
 

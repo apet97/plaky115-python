@@ -10,9 +10,14 @@ from __future__ import annotations
 
 from importlib import resources
 
+from plaky115 import __version__
+
 BOARD_VIEW_URI = "ui://plaky115/board-view.html"
 
 
 def board_view_html() -> str:
     """The Board View template text, loaded from the packaged file."""
-    return (resources.files("plaky115_mcp.apps") / "board_view.html").read_text(encoding="utf-8")
+    template = (resources.files("plaky115_mcp.apps") / "board_view.html").read_text(
+        encoding="utf-8"
+    )
+    return template.replace("__PLAKY115_VERSION__", __version__)

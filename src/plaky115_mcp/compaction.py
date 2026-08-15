@@ -94,7 +94,7 @@ COMPACT_KEYS: dict[str, tuple[str, ...]] = {
     "comment": ("id", "content", "createdBy", "createdAt", "repliesToId"),
     "itemGroup": ("id", "title", "color", "ranking"),
     "itemFile": ("id", "name", "size", "fileType", "extension", "uploadedBy"),
-    "downloadLink": ("url", "expiresAt"),
+    "downloadLink": ("url", "expiresInSeconds"),
 }
 
 

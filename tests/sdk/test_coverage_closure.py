@@ -15,7 +15,7 @@ from plaky115 import (
     UploadValidationError,
     search_items_detailed,
 )
-from plaky115.resources._common import RequestOverrides, body_as_dict, with_idempotency
+from plaky115.resources._common import RequestOverrides, body_as_dict
 from plaky115.runtime.retries import async_with_retries, with_retries
 from plaky115.runtime.upload import normalize_upload_media_type
 from plaky115_mcp.config import ServerSettings
@@ -200,20 +200,13 @@ def test_validate_spec_rejections() -> None:
 # --- resource helpers ---------------------------------------------------------
 
 
-def test_body_as_dict_and_idempotency_merge() -> None:
+def test_body_as_dict() -> None:
     from pydantic import BaseModel
 
     class Body(BaseModel):
         title: str
 
     assert body_as_dict(Body(title="t")) == {"title": "t"}
-    assert with_idempotency(None, None) is None
-    fresh = with_idempotency(None, "k1")
-    assert fresh is not None and fresh.idempotency_key == "k1"
-    kept = with_idempotency(RequestOverrides(idempotency_key="orig"), "k2")
-    assert kept is not None and kept.idempotency_key == "orig"
-    merged = with_idempotency(RequestOverrides(timeout=9), "k3")
-    assert merged is not None and merged.idempotency_key == "k3" and merged.timeout == 9
 
 
 # --- curated tool internal-error paths ---------------------------------------

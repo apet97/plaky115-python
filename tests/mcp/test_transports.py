@@ -16,6 +16,8 @@ import httpx2
 import pytest
 from mcp.client import Client
 from mcp.client.stdio import StdioServerParameters, stdio_client
+from mcp_types import CLIENT_CAPABILITIES_META_KEY, PROTOCOL_VERSION_META_KEY
+from mcp_types.jsonrpc import HEADER_MISMATCH
 
 REPO = Path(__file__).resolve().parent.parent.parent
 
@@ -138,6 +140,98 @@ async def test_streamable_http_list_and_call(fake_plaky_api: str, mode: str) -> 
         missing = await client.call_tool("plaky_get_space", {"spaceId": "9"})
         assert missing.is_error is True
         assert missing.structured_content["error"]["name"] == "PlakyNotFoundError"
+
+
+async def _modern_raw_request(
+    http: httpx2.AsyncClient,
+    base: str,
+    request_id: int,
+    method: str,
+    params: dict[str, Any],
+    *,
+    omit_headers: frozenset[str] = frozenset(),
+    header_overrides: dict[str, str] | None = None,
+) -> tuple[httpx2.Response, dict[str, Any]]:
+    payload: dict[str, Any] = {
+        "jsonrpc": "2.0",
+        "id": request_id,
+        "method": method,
+        "params": {
+            **params,
+            "_meta": {
+                PROTOCOL_VERSION_META_KEY: "2026-07-28",
+                CLIENT_CAPABILITIES_META_KEY: {},
+            },
+        },
+    }
+    headers: dict[str, str] = {
+        "accept": "application/json, text/event-stream",
+        "mcp-protocol-version": "2026-07-28",
+        "mcp-method": method,
+    }
+    name = params.get("name") or params.get("uri")
+    if isinstance(name, str):
+        headers["mcp-name"] = name
+    for header in omit_headers:
+        headers.pop(header, None)
+    headers.update(header_overrides or {})
+    response = await http.post(f"{base}/mcp", json=payload, headers=headers)
+    return response, response.json()
+
+
+async def test_raw_modern_http_routes_and_cache_hints(fake_plaky_api: str) -> None:
+    async with _http_server(fake_plaky_api) as base, httpx2.AsyncClient() as http:
+        cacheable: tuple[tuple[str, dict[str, Any]], ...] = (
+            ("server/discover", {}),
+            ("tools/list", {}),
+            ("resources/list", {}),
+            ("resources/read", {"uri": "plaky115://docs/listSpaces"}),
+        )
+        for request_id, (method, params) in enumerate(cacheable, start=1):
+            response, payload = await _modern_raw_request(http, base, request_id, method, params)
+            assert response.status_code == 200, payload
+            assert response.headers.get("mcp-session-id") is None
+            result = payload["result"]
+            assert result["ttlMs"] == 300_000
+            assert result["cacheScope"] == "private"
+
+        response, payload = await _modern_raw_request(
+            http,
+            base,
+            5,
+            "tools/call",
+            {"name": "plaky_list_spaces", "arguments": {}},
+        )
+        assert response.status_code == 200
+        assert payload["result"]["structuredContent"] == {
+            "data": [{"id": 1, "title": "Alpha"}],
+            "hasMore": False,
+        }
+
+        invalid_header_cases: tuple[
+            tuple[str, dict[str, Any], frozenset[str], dict[str, str] | None], ...
+        ] = (
+            ("tools/list", {}, frozenset({"mcp-method"}), None),
+            ("tools/list", {}, frozenset(), {"mcp-method": "resources/list"}),
+            (
+                "resources/read",
+                {"uri": "plaky115://docs/listSpaces"},
+                frozenset(),
+                {"mcp-name": "plaky115://docs/getSpace"},
+            ),
+        )
+        for method, params, omit_headers, header_overrides in invalid_header_cases:
+            response, payload = await _modern_raw_request(
+                http,
+                base,
+                6,
+                method,
+                params,
+                omit_headers=omit_headers,
+                header_overrides=header_overrides,
+            )
+            assert response.status_code == 400
+            assert payload["error"]["code"] == HEADER_MISMATCH
 
 
 async def test_http_request_body_cap_and_health(fake_plaky_api: str) -> None:

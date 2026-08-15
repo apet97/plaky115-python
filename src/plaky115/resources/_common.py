@@ -6,8 +6,8 @@ async resource classes; only the network executor differs.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass, replace
 from typing import Any, Protocol, TypeVar
 
 from pydantic import BaseModel
@@ -27,6 +27,7 @@ class RequestOverrides:
     idempotency_key: str | None = None
     max_retries: int | None = None
     max_response_bytes: int | None = None
+    on_dispatch: Callable[[], None] | None = None
 
 
 class Requester(Protocol):
@@ -73,17 +74,9 @@ def body_as_dict(body: BodyInput) -> dict[str, Any]:
 def with_idempotency(
     options: RequestOverrides | None, idempotency_key: str | None
 ) -> RequestOverrides | None:
-    """Attach an explicit idempotency key unless the overrides already set one."""
+    """Attach a method-level idempotency key when the method supplies one."""
     if idempotency_key is None:
         return options
     if options is None:
         return RequestOverrides(idempotency_key=idempotency_key)
-    if options.idempotency_key is not None:
-        return options
-    return RequestOverrides(
-        timeout=options.timeout,
-        headers=options.headers,
-        idempotency_key=idempotency_key,
-        max_retries=options.max_retries,
-        max_response_bytes=options.max_response_bytes,
-    )
+    return replace(options, idempotency_key=idempotency_key)

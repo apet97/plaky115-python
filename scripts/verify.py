@@ -32,6 +32,24 @@ def gate(name: str, cmd: list[str]) -> dict[str, object]:
     }
 
 
+def clean_worktree_gate() -> dict[str, object]:
+    """Return a failing receipt when release verification changed tracked state."""
+    started = time.monotonic()
+    result = subprocess.run(
+        ["git", "status", "--porcelain", "--untracked-files=all"],
+        cwd=REPO,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    return {
+        "gate": "release-worktree-clean",
+        "command": "git status --porcelain --untracked-files=all",
+        "exit_code": 0 if result.returncode == 0 and not result.stdout.strip() else 1,
+        "seconds": round(time.monotonic() - started, 1),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     group = parser.add_mutually_exclusive_group(required=True)
@@ -45,7 +63,10 @@ def main() -> int:
     def run_gate(name: str, cmd: list[str]) -> None:
         receipts.append(gate(name, cmd))
 
-    run_gate("parity-inventory", [python, "scripts/parity.py"])
+    parity_command = [python, "scripts/parity.py"]
+    if args.release_online:
+        parity_command.append("--require-source")
+    run_gate("parity-inventory", parity_command)
     run_gate("contract-check", [python, "scripts/contract.py", "check"])
     run_gate("generate-check", [python, "scripts/generate.py", "--check"])
     run_gate("ruff-format", [python, "-m", "ruff", "format", "--check", "."])
@@ -88,6 +109,7 @@ def main() -> int:
     run_gate("lock-integrity", ["uv", "lock", "--check"])
 
     if args.release_online:
+        receipts.append(clean_worktree_gate())
         # Audit the exported lockfile: the project itself is not on PyPI
         # yet at release time, so an environment audit cannot be strict.
         requirements = Path(tempfile.gettempdir()) / "plaky115-requirements-audit.txt"

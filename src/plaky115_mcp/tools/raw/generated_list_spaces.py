@@ -9,9 +9,10 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Annotated
+from typing import Annotated, Literal
 
 from mcp.types import CallToolResult, ToolAnnotations
+from pydantic import Field, StrictInt
 
 from plaky115.async_client import AsyncPlakyClient
 from plaky115.errors import PlakyError
@@ -27,9 +28,18 @@ from plaky115_mcp.registry import ToolSpec
 
 def build_tool(client: AsyncPlakyClient) -> ToolSpec:
     async def list_spaces(
-        expand: list[str] | None = None,
-        page: int | None = None,
-        pageSize: int | None = None,
+        expand: Annotated[
+            list[Literal["board"]] | None,
+            Field(
+                description="Comma-separated list of relationships to be expanded into full objects."
+            ),
+        ] = None,
+        page: Annotated[
+            StrictInt | None, Field(description="One-based page number.", ge=1)
+        ] = None,
+        pageSize: Annotated[
+            StrictInt | None, Field(description="Positive page size.", ge=1)
+        ] = None,
     ) -> Annotated[CallToolResult, PagedOutput]:
         try:
             result = await client.spaces.list(expand=expand, page=page, page_size=pageSize)
@@ -45,12 +55,15 @@ def build_tool(client: AsyncPlakyClient) -> ToolSpec:
         except (PlakyError, ValueError, TypeError) as exc:
             return error_result(envelope_wire(error_envelope(exc, None)), str(exc))
         except Exception as exc:  # controlled internal-error path
-            return error_result(envelope_wire(internal_error(exc)), "Internal server error.")
+            return error_result(
+                envelope_wire(internal_error(exc, None)),
+                "Internal server error.",
+            )
 
     return ToolSpec(
         name="plaky_list_spaces",
         title="List spaces",
-        description="List workspace spaces",
+        description="List workspace spaces; it returns a paginated result. Requires no identifiers and read scope. Optional filters: expand. Use page and pageSize to continue the result set.",
         handler=list_spaces,
         scopes=frozenset({"read"}),
         annotations=ToolAnnotations(
@@ -60,4 +73,22 @@ def build_tool(client: AsyncPlakyClient) -> ToolSpec:
             open_world_hint=True,
         ),
         kind="raw",
+        parameters={
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "expand": {
+                    "items": {"enum": ["board"], "type": "string"},
+                    "type": "array",
+                    "description": "Comma-separated list of relationships to be expanded into full objects.",
+                },
+                "page": {"type": "integer", "minimum": 1, "description": "One-based page number."},
+                "pageSize": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Positive page size.",
+                },
+            },
+            "required": [],
+        },
     )

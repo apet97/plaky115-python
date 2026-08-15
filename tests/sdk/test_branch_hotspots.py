@@ -232,6 +232,10 @@ async def test_upload_and_plan_normalizer_edges() -> None:
         )
     with pytest.raises(TypeError, match="body must be a plain object"):
         normalize_comment_plan(space_id=1, board_id=7, item_id=3, body="x")
+    body = {"text": "Reply", "repliesToId": 7}
+    plan = normalize_comment_plan(space_id=1, board_id=2, item_id=3, body=body)
+    assert body == {"text": "Reply", "repliesToId": 7}
+    assert dict(plan.body) == {"text": "Reply", "repliesToId": "7"}
 
 
 def test_client_validation_errors() -> None:

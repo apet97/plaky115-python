@@ -230,6 +230,9 @@ class AsyncItemsResource:
         page_size: int = DEFAULT_PAGE_SIZE,
         limit: int | None = None,
         expand: Sequence[str] | None = None,
+        board_view_id: IdInput | None = None,
+        parent_id: IdInput | None = None,
+        subitems_behaviour: str | None = None,
         options: RequestOverrides | None = None,
     ) -> AsyncPaginator[Item]:
         async def fetch(page: int, size: int) -> Page[Item]:
@@ -239,6 +242,9 @@ class AsyncItemsResource:
                 page=page,
                 page_size=size,
                 expand=expand,
+                board_view_id=board_view_id,
+                parent_id=parent_id,
+                subitems_behaviour=subitems_behaviour,
                 options=options,
             )
 
@@ -252,6 +258,9 @@ class AsyncItemsResource:
         limit: int | None = None,
         page_size: int = DEFAULT_PAGE_SIZE,
         expand: Sequence[str] | None = None,
+        board_view_id: IdInput | None = None,
+        parent_id: IdInput | None = None,
+        subitems_behaviour: str | None = None,
         options: RequestOverrides | None = None,
     ) -> list[Item]:
         return await self.iterate(
@@ -260,6 +269,9 @@ class AsyncItemsResource:
             page_size=page_size,
             limit=limit,
             expand=expand,
+            board_view_id=board_view_id,
+            parent_id=parent_id,
+            subitems_behaviour=subitems_behaviour,
             options=options,
         ).to_list()
 
@@ -429,6 +441,9 @@ class ItemsResource:
         page_size: int = DEFAULT_PAGE_SIZE,
         limit: int | None = None,
         expand: Sequence[str] | None = None,
+        board_view_id: IdInput | None = None,
+        parent_id: IdInput | None = None,
+        subitems_behaviour: str | None = None,
         options: RequestOverrides | None = None,
     ) -> SyncPaginator[Item]:
         def fetch(page: int, size: int) -> Page[Item]:
@@ -438,6 +453,9 @@ class ItemsResource:
                 page=page,
                 page_size=size,
                 expand=expand,
+                board_view_id=board_view_id,
+                parent_id=parent_id,
+                subitems_behaviour=subitems_behaviour,
                 options=options,
             )
 
@@ -451,6 +469,9 @@ class ItemsResource:
         limit: int | None = None,
         page_size: int = DEFAULT_PAGE_SIZE,
         expand: Sequence[str] | None = None,
+        board_view_id: IdInput | None = None,
+        parent_id: IdInput | None = None,
+        subitems_behaviour: str | None = None,
         options: RequestOverrides | None = None,
     ) -> list[Item]:
         return self.iterate(
@@ -459,5 +480,8 @@ class ItemsResource:
             page_size=page_size,
             limit=limit,
             expand=expand,
+            board_view_id=board_view_id,
+            parent_id=parent_id,
+            subitems_behaviour=subitems_behaviour,
             options=options,
         ).to_list()

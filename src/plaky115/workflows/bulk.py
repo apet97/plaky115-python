@@ -8,6 +8,7 @@ post-dispatch failure is conservatively ambiguous.
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Mapping, Sequence
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any, cast
 
 from plaky115.errors import PlakyPartialMutationError
@@ -66,8 +67,9 @@ async def async_bulk_update_items(
     options: RequestOverrides | None = None,
 ) -> tuple[MutationReceipt, ...]:
     item_ids = _validate_updates(updates)
+    resolution_options = replace(options, on_dispatch=None) if options is not None else None
     resolved_space, resolved_board = await async_resolve_space_and_board(
-        client, space=space, board=board, options=options
+        client, space=space, board=board, options=resolution_options
     )
     space_id = _resolved_id(resolved_space, "space")
     board_id = _resolved_id(resolved_board, "board")
@@ -85,17 +87,24 @@ async def async_bulk_update_items(
         if dry_run:
             await _report(on_progress, receipts, index, len(item_ids))
             continue
-        receipts[index] = transition_receipt(receipts[index], "request-started", "request")
+        item_options = replace(
+            options or RequestOverrides(),
+            on_dispatch=_compose_dispatch_callback(
+                options.on_dispatch if options is not None else None, receipts, index
+            ),
+        )
         try:
             await client.items.update_fields(
                 space_id=space_id,
                 board_id=board_id,
                 item_id=item_id,
                 body=dict(updates[index]["body"]),
-                options=options,
+                options=item_options,
             )
         except Exception as error:
-            receipts[index] = transition_receipt(receipts[index], "ambiguous", "response", error)
+            status = "ambiguous" if receipts[index].attempted else "failed"
+            phase = "response" if receipts[index].attempted else "preflight"
+            receipts[index] = transition_receipt(receipts[index], status, phase, error)
             if throw_on_error:
                 raise PlakyPartialMutationError(
                     "Bulk item update has an unconfirmed mutation outcome.",
@@ -140,8 +149,9 @@ def bulk_update_items(
     options: RequestOverrides | None = None,
 ) -> tuple[MutationReceipt, ...]:
     item_ids = _validate_updates(updates)
+    resolution_options = replace(options, on_dispatch=None) if options is not None else None
     resolved_space, resolved_board = resolve_space_and_board(
-        client, space=space, board=board, options=options
+        client, space=space, board=board, options=resolution_options
     )
     space_id = _resolved_id(resolved_space, "space")
     board_id = _resolved_id(resolved_board, "board")
@@ -158,17 +168,24 @@ def bulk_update_items(
         if dry_run:
             _report_sync(on_progress, receipts, index, len(item_ids))
             continue
-        receipts[index] = transition_receipt(receipts[index], "request-started", "request")
+        item_options = replace(
+            options or RequestOverrides(),
+            on_dispatch=_compose_dispatch_callback(
+                options.on_dispatch if options is not None else None, receipts, index
+            ),
+        )
         try:
             client.items.update_fields(
                 space_id=space_id,
                 board_id=board_id,
                 item_id=item_id,
                 body=dict(updates[index]["body"]),
-                options=options,
+                options=item_options,
             )
         except Exception as error:
-            receipts[index] = transition_receipt(receipts[index], "ambiguous", "response", error)
+            status = "ambiguous" if receipts[index].attempted else "failed"
+            phase = "response" if receipts[index].attempted else "preflight"
+            receipts[index] = transition_receipt(receipts[index], status, phase, error)
             if throw_on_error:
                 raise PlakyPartialMutationError(
                     "Bulk item update has an unconfirmed mutation outcome.",
@@ -197,3 +214,20 @@ def _report_sync(
             receipts=tuple(receipts),
             failed_index=index,
         ) from error
+
+
+def _mark_dispatched(receipts: list[MutationReceipt], index: int) -> None:
+    receipts[index] = transition_receipt(receipts[index], "request-started", "request")
+
+
+def _compose_dispatch_callback(
+    caller_callback: Callable[[], None] | None,
+    receipts: list[MutationReceipt],
+    index: int,
+) -> Callable[[], None]:
+    def on_dispatch() -> None:
+        if caller_callback is not None:
+            caller_callback()
+        _mark_dispatched(receipts, index)
+
+    return on_dispatch

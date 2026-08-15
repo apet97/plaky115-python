@@ -8,21 +8,26 @@ header helpers. Resource methods and clients build on these.
 
 from __future__ import annotations
 
+import asyncio
 import inspect
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterator, Mapping
 from dataclasses import dataclass, field
 from typing import Any, Literal, cast
 
+import httpx2
+
 from plaky115.config import (
     DEFAULT_MAX_RESPONSE_BYTES,
     DEFAULT_TIMEOUT_SECONDS,
 )
+from plaky115.errors import PlakyTimeoutError
 from plaky115.runtime.rate_limit import RateLimitTracker
 from plaky115.runtime.request_builders import merge_headers_into
 from plaky115.user_agent import build_user_agent
 
 __all__ = [
     "ApiResponse",
+    "AsyncByteStream",
     "AsyncHeadersProvider",
     "AsyncRequestHook",
     "AsyncResponseHook",
@@ -31,6 +36,7 @@ __all__ = [
     "RequestOptions",
     "RequestSpec",
     "ResponseHook",
+    "SyncByteStream",
     "async_request",
     "async_request_with_response",
     "async_resolve_headers",
@@ -80,6 +86,7 @@ class RequestOptions:
     idempotency_key: str | None = None
     request_hook: Callable[..., Any] | None = None
     response_hook: Callable[..., Any] | None = None
+    on_dispatch: Callable[[], None] | None = field(default=None, compare=False)
     rate_limit_tracker: RateLimitTracker | None = field(default=None, compare=False)
 
 
@@ -92,6 +99,74 @@ class ApiResponse:
     headers: Mapping[str, str]
     url: str
     request_id: str | None = None
+
+
+class SyncByteStream(Iterator[bytes]):
+    """A response-owned synchronous byte stream with deterministic cleanup."""
+
+    def __init__(self, response: Any) -> None:
+        self._response = response
+        self._iterator = iter(cast("Iterator[bytes]", response.iter_bytes()))
+        self._closed = False
+
+    def __next__(self) -> bytes:
+        try:
+            return next(self._iterator)
+        except StopIteration:
+            self.close()
+            raise
+        except httpx2.TimeoutException as exc:
+            self.close()
+            raise PlakyTimeoutError() from exc
+        except BaseException:
+            self.close()
+            raise
+
+    def close(self) -> None:
+        if not self._closed:
+            self._closed = True
+            self._response.close()
+
+    def __enter__(self) -> SyncByteStream:
+        return self
+
+    def __exit__(self, *exc_info: object) -> None:
+        self.close()
+
+
+class AsyncByteStream(AsyncIterator[bytes]):
+    """A response-owned asynchronous byte stream with deterministic cleanup."""
+
+    def __init__(self, response: Any, *, timeout: float | None = None) -> None:
+        self._response = response
+        self._iterator = response.aiter_bytes()
+        self._closed = False
+        self._timeout = timeout
+
+    async def __anext__(self) -> bytes:
+        try:
+            async with asyncio.timeout(self._timeout):
+                return await self._iterator.__anext__()
+        except StopAsyncIteration:
+            await self.aclose()
+            raise
+        except (TimeoutError, httpx2.TimeoutException) as exc:
+            await self.aclose()
+            raise PlakyTimeoutError() from exc
+        except BaseException:
+            await self.aclose()
+            raise
+
+    async def aclose(self) -> None:
+        if not self._closed:
+            self._closed = True
+            await self._response.aclose()
+
+    async def __aenter__(self) -> AsyncByteStream:
+        return self
+
+    async def __aexit__(self, *exc_info: object) -> None:
+        await self.aclose()
 
 
 def resolve_headers(
@@ -186,13 +261,3 @@ async def async_request_with_response(
     from plaky115.runtime.async_transport import async_request_with_response as _impl
 
     return await _impl(client, spec, options)
-
-
-def iter_response_stream(stream: Iterator[bytes]) -> Iterator[bytes]:  # pragma: no cover
-    return stream
-
-
-def aiter_response_stream(
-    stream: AsyncIterator[bytes],
-) -> AsyncIterator[bytes]:  # pragma: no cover
-    return stream

@@ -154,7 +154,7 @@ def normalize_item_create_plan(
 def normalize_item_update_fields_plan(
     *, space_id: int | str, board_id: int | str, item_id: int | str, body: Any
 ) -> NormalizedMutationPlan:
-    payload = _plain_body(body, "body")
+    payload = dict(_plain_body(body, "body"))
     return _plan(
         "updateItemFields",
         {
@@ -175,8 +175,10 @@ def normalize_comment_plan(
     item_comment_id: int | str | None = None,
     operation_id: str = "createItemComment",
 ) -> NormalizedMutationPlan:
-    payload = _plain_body(body, "body")
+    payload = dict(_plain_body(body, "body"))
     _require_string(payload, "text")
+    if payload.get("repliesToId") is not None:
+        payload["repliesToId"] = _canonical_id(payload["repliesToId"], "body.repliesToId")
     target_ids = {
         "spaceId": _canonical_id(space_id, "spaceId"),
         "boardId": _canonical_id(board_id, "boardId"),

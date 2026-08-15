@@ -12,7 +12,6 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from mcp.server import MCPServer
 from mcp.types import ToolAnnotations
 
 MAX_TOOL_NAME_LENGTH = 64
@@ -29,6 +28,7 @@ class ToolSpec:
     kind: str = "raw"  # "raw" | "curated"
     compat_only: bool = field(default=False)
     meta: dict[str, Any] | None = None  # extra _meta published on tools/list (e.g. MCP Apps "ui")
+    parameters: dict[str, Any] | None = None  # package-owned published input schema
 
 
 def validate_spec(spec: ToolSpec) -> None:
@@ -56,55 +56,3 @@ def mounts(spec: ToolSpec, mode: str, scopes: frozenset[str], compat: bool) -> b
     if spec.kind == "curated" and mode not in ("curated", "all"):
         return False
     return spec.scopes <= scopes
-
-
-def _make_strict(server: MCPServer, name: str) -> None:
-    """Rebuild the tool's argument model with extra='forbid'.
-
-    The official SDK derives a permissive argument model from the handler
-    signature; the pinned contract requires unknown arguments to fail
-    validation, so the model is subclassed with a strict config and the
-    published input schema gains additionalProperties: false.
-    """
-    tool = server._tool_manager.get_tool(name)  # pyright: ignore[reportPrivateUsage]
-    if tool is None:  # pragma: no cover - registration just added it
-        raise RuntimeError(f"tool {name} was not registered")
-    arg_model = tool.fn_metadata.arg_model
-    strict_model = type(
-        f"{arg_model.__name__}Strict",
-        (arg_model,),
-        {"model_config": {**arg_model.model_config, "extra": "forbid"}},
-    )
-    tool.fn_metadata.arg_model = strict_model  # pyright: ignore[reportAttributeAccessIssue]
-    tool.parameters["additionalProperties"] = False
-
-
-def register_tools(
-    server: MCPServer,
-    specs: list[ToolSpec],
-    *,
-    mode: str,
-    scopes: frozenset[str],
-    compat: bool = False,
-) -> list[str]:
-    """Validate every spec, mount the eligible ones, return mounted names."""
-    names = [spec.name for spec in specs]
-    duplicates = {n for n in names if names.count(n) > 1}
-    if duplicates:
-        raise ValueError(f"duplicate tool names: {sorted(duplicates)}")
-    mounted: list[str] = []
-    for spec in specs:
-        validate_spec(spec)
-        if not mounts(spec, mode, scopes, compat):
-            continue
-        server.add_tool(
-            spec.handler,
-            name=spec.name,
-            title=spec.title,
-            description=spec.description,
-            annotations=spec.annotations,
-            meta=spec.meta,
-        )
-        _make_strict(server, spec.name)
-        mounted.append(spec.name)
-    return mounted

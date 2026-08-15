@@ -12,9 +12,10 @@ from plaky115.async_client import AsyncPlakyClient
 from plaky115.errors import PlakyError
 from plaky115_mcp.compaction import error_result, make_result
 from plaky115_mcp.errors import envelope_wire, error_envelope, internal_error, usage_error
-from plaky115_mcp.outputs import EntityOutput
+from plaky115_mcp.outputs import ReadWorkflowOutput
 from plaky115_mcp.registry import ToolSpec
 from plaky115_mcp.tools.curated.workflow_registry import READ_RUNNERS, READ_WORKFLOW_IDS
+from plaky115_mcp.workflow_models import READ_WORKFLOW_SCHEMA, validate_read_workflow
 
 
 def build_execute_read_workflow(client: AsyncPlakyClient) -> ToolSpec:
@@ -22,12 +23,13 @@ def build_execute_read_workflow(client: AsyncPlakyClient) -> ToolSpec:
         workflow: str,
         args: dict[str, Any],
         ctx: Context,  # type: ignore[type-arg]
-    ) -> Annotated[CallToolResult, EntityOutput]:
+    ) -> Annotated[CallToolResult, ReadWorkflowOutput]:
         try:
-            runner = READ_RUNNERS.get(workflow)
-            if runner is None:
+            if workflow not in READ_WORKFLOW_IDS:
                 envelope = usage_error(f"workflow must be one of {', '.join(READ_WORKFLOW_IDS)}")
                 return error_result(envelope_wire(envelope), "Unknown read workflow.")
+            workflow, args = validate_read_workflow(workflow, args)
+            runner = READ_RUNNERS[workflow]
             text, wire = await runner(client, args, ctx)
             return make_result(text=text, structured=wire)
         except asyncio.CancelledError:
@@ -54,4 +56,5 @@ def build_execute_read_workflow(client: AsyncPlakyClient) -> ToolSpec:
             open_world_hint=True,
         ),
         kind="curated",
+        parameters=READ_WORKFLOW_SCHEMA,
     )

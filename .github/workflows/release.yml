@@ -35,6 +35,14 @@ jobs:
         run: |
           git fetch origin main
           git merge-base --is-ancestor HEAD origin/main
+      - name: Fetch pinned parity source
+        env:
+          SOURCE_COMMIT: 33ae2926aa696f36d9663d44f914d42d9aadc53f
+        run: |
+          source_dir="$RUNNER_TEMP/plaky115-source"
+          git clone --no-checkout https://github.com/apet97/plaky115.git "$source_dir"
+          git -C "$source_dir" checkout --detach "$SOURCE_COMMIT"
+          test "$(git -C "$source_dir" rev-parse HEAD)" = "$SOURCE_COMMIT"
       - name: Sync
         run: uv sync --frozen --all-extras --group dev
       - name: Version must match the tag
@@ -44,13 +52,14 @@ jobs:
           version="$(uv run --frozen python -c 'from plaky115._version import __version__; print(__version__)')"
           test "$version" = "${TAG#v}"
       - name: Release verification (offline gates + dependency audit)
+        env:
+          PLAKY115_SOURCE_CHECKOUT: ${{ runner.temp }}/plaky115-source
         run: uv run --frozen python scripts/verify.py --release-online
       - name: Built artifacts must carry exactly the tag version
         env:
           TAG: ${{ github.ref_name }}
         run: |
-          git status --porcelain
-          git diff --stat
+          test -z "$(git status --porcelain --untracked-files=all)"
           test -f "dist/plaky115-${TAG#v}-py3-none-any.whl"
           test -f "dist/plaky115-${TAG#v}.tar.gz"
       # actions/upload-artifact v4.6.2

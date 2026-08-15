@@ -8,6 +8,7 @@ from typing import Any, cast
 from mcp.server.mcpserver import Context
 
 from plaky115.async_client import AsyncPlakyClient
+from plaky115.resources._common import RequestOverrides
 from plaky115.runtime.chunks import PageCursor
 from plaky115.runtime.mutations import AttemptTracker
 from plaky115.runtime.upload import Base64UploadInput
@@ -45,7 +46,7 @@ def _cursor(args: dict[str, Any]) -> PageCursor | None:
         return None
     if not isinstance(raw, dict):
         raise ValueError("cursor must be an object with page and index")
-    return PageCursor(page=int(raw.get("page", 1)), index=int(raw.get("index", 0)))  # pyright: ignore[reportUnknownMemberType,reportUnknownArgumentType]
+    return PageCursor(page=raw["page"], index=raw["index"])  # pyright: ignore[reportUnknownArgumentType]
 
 
 async def _run_workspace_map(
@@ -53,8 +54,8 @@ async def _run_workspace_map(
 ) -> tuple[str, dict[str, Any]]:
     tree = await async_workspace_map(
         client,
-        max_items=int(args.get("maxItems", 200)),
-        max_bytes=int(args.get("maxBytes", 65536)),
+        max_items=args["maxItems"],
+        max_bytes=args["maxBytes"],
     )
     compact = [
         {
@@ -78,8 +79,8 @@ async def _run_items_search(
         client,
         space=args["spaceId"],
         board=args["boardId"],
-        query=str(args.get("query", "")),
-        limit=int(args.get("limit", 200)),
+        query=args["query"],
+        limit=args["limit"],
         cursor=_cursor(args),
         on_progress=progress,
     )
@@ -104,7 +105,7 @@ async def _run_items_search(
 async def _run_comments_thread(
     client: AsyncPlakyClient, args: dict[str, Any], ctx: Context | None
 ) -> tuple[str, dict[str, Any]]:
-    limit = int(args.get("limit", 100))
+    limit = args["limit"]
     page = await client.comments.list(
         space_id=args["spaceId"], board_id=args["boardId"], item_id=args["itemId"]
     )
@@ -123,10 +124,10 @@ async def _run_comments_thread(
 async def _run_export_items(
     client: AsyncPlakyClient, args: dict[str, Any], ctx: Context | None
 ) -> tuple[str, dict[str, Any]]:
-    export_format = str(args.get("format", "jsonl"))
+    export_format = args["format"]
     if export_format not in ("jsonl", "csv"):
         raise ValueError("format must be jsonl or csv")
-    csv_safety = str(args.get("csvSafety", "spreadsheet"))
+    csv_safety = args["csvSafety"]
     if csv_safety not in ("spreadsheet", "raw"):
         raise ValueError("csvSafety must be spreadsheet or raw")
     if ctx is not None:
@@ -137,10 +138,10 @@ async def _run_export_items(
         board=args["boardId"],
         format=export_format,  # type: ignore[arg-type]
         csv_safety=csv_safety,  # type: ignore[arg-type]
-        max_items=int(args.get("maxItems", 100)),
-        max_bytes=int(args.get("maxBytes", 65536)),
+        max_items=args["maxItems"],
+        max_bytes=args["maxBytes"],
         cursor=_cursor(args),
-        include_header=bool(args.get("includeHeader", True)),
+        include_header=args["includeHeader"],
     )
     if ctx is not None:
         await ctx.report_progress(1, 1)
@@ -229,25 +230,24 @@ async def run_mutation_workflow(
 
         prepared_upload = normalize_upload(
             Base64UploadInput(
-                file_base64=str(body_dict.get("fileBase64", "")),
-                file_name=str(body_dict.get("fileName", "")),
-                content_type=(
-                    str(body_dict["contentType"])
-                    if body_dict.get("contentType") is not None
-                    else None
-                ),
+                file_base64=body_dict["fileBase64"],
+                file_name=body_dict["fileName"],
+                content_type=body_dict.get("contentType"),
             )
         )
 
     tracker = AttemptTracker(operation, dict(plan.target_ids))
     if trackers_out is not None:
         trackers_out.append(tracker)
+    request_options = RequestOverrides(on_dispatch=tracker.request_started)
     if ctx is not None:
         await ctx.report_progress(0, 1)
-    tracker.request_started()
     if workflow == "items.create":
         result = await client.items.create(
-            space_id=args["spaceId"], board_id=args["boardId"], body=dict(plan.body)
+            space_id=args["spaceId"],
+            board_id=args["boardId"],
+            body=dict(plan.body),
+            options=request_options,
         )
     elif workflow == "items.updateFields":
         result = await client.items.update_fields(
@@ -255,6 +255,7 @@ async def run_mutation_workflow(
             board_id=args["boardId"],
             item_id=args["itemId"],
             body=dict(plan.body),
+            options=request_options,
         )
     elif workflow == "comments.add":
         result = await client.comments.create(
@@ -262,10 +263,14 @@ async def run_mutation_workflow(
             board_id=args["boardId"],
             item_id=args["itemId"],
             body=dict(plan.body),
+            options=request_options,
         )
     elif workflow == "itemGroups.create":
         result = await client.item_groups.create(
-            space_id=args["spaceId"], board_id=args["boardId"], body=dict(plan.body)
+            space_id=args["spaceId"],
+            board_id=args["boardId"],
+            body=dict(plan.body),
+            options=request_options,
         )
     elif workflow == "itemGroups.update":
         result = await client.item_groups.update(
@@ -273,6 +278,7 @@ async def run_mutation_workflow(
             board_id=args["boardId"],
             item_group_id=args["itemGroupId"],
             body=dict(plan.body),
+            options=request_options,
         )
     elif workflow == "itemFiles.upload":
         assert prepared_upload is not None
@@ -283,6 +289,7 @@ async def run_mutation_workflow(
             file=prepared_upload.data,
             file_name=prepared_upload.file_name,
             content_type=prepared_upload.media_type,
+            options=request_options,
         )
     else:  # itemFiles.update
         result = await client.item_files.update(
@@ -291,6 +298,7 @@ async def run_mutation_workflow(
             item_id=args["itemId"],
             item_file_id=args["itemFileId"],
             body=dict(plan.body),
+            options=request_options,
         )
     tracker.completed()
     if ctx is not None:

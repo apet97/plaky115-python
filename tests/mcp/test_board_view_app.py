@@ -304,6 +304,18 @@ def test_doc_resource_texts_are_bounded() -> None:
         assert len(resource.text.encode("utf-8")) < 64 * 1024
 
 
+def test_teardown_guards_all_async_continuations() -> None:
+    html = board_view_html()
+    for continuation in (
+        r"\.then\(function \(result\) \{\s*if \(!tornDown\) onToolResult\(result\);",
+        r"\.catch\(function \(err\) \{\s*if \(!tornDown\) setStatus\(",
+        r"\.then\(function \(\) \{\s*if \(!tornDown\) button\.disabled = false;",
+        r"\}\)\.then\(function \(result\) \{\s*if \(tornDown\) return;\s*applyTheme",
+        r"\}\)\.catch\(function \(\) \{\s*if \(tornDown\) return;\s*setStatus",
+    ):
+        assert re.search(continuation, html), continuation
+
+
 async def test_structured_result_fits_wire_cap() -> None:
     server = build_server(settings(), sdk_client())
     async with Client(server) as client:

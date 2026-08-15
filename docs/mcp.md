@@ -17,6 +17,18 @@ Defaults: `curated` mode, `read` scope. Modes: `curated`, `generated`
 `plaky_execute_workflow` mounts only with `--enable-compat-workflow` and
 is excluded from any directory-facing catalog.
 
+The default six curated read tools are `plaky_search_docs`,
+`plaky_workspace_context`, `plaky_find`, `plaky_board_view`,
+`plaky_plan_mutation`, and `plaky_execute_read_workflow`. Adding `write`
+mounts `plaky_execute_mutation_workflow`; the eighth dispatcher is
+compatibility-only. All eleven workflow IDs use a discriminated `workflow`
+schema with strict argument objects. Unknown fields, boolean IDs, and string
+booleans are rejected before a resolver, progress callback, or network call.
+Fixed mutation bodies use the generated Plaky request models and reject
+unknown keys. Item-field maps remain dynamic because Plaky defines their keys,
+but each value must match `FieldValueChangeRequest`.
+Bulk field updates allow at most 50 entries and 64 KiB of UTF-8 JSON.
+
 Configuration precedence: `--server-url` > `PLAKY115_BASE_URL` > SDK
 default. Key: `PLAKY115_API_KEY` > `PLAKY115_API_KEY_AUTH`.
 
@@ -49,9 +61,11 @@ plaky115-mcp --transport streamable-http --host 127.0.0.1 --port 8000
 
 - Every tool advertises success and error output schemas; known failures
   return `isError=true` with the structured envelope
-  (`category`, `name`, `message`, `retryable`, `status`, `code`,
-  `requestId`, `retryAfterMs`, `attempted`, `mayHaveCommitted`, `phase`,
-  `receipts`).
+  (`category`, `name`, `message`, `retryable`, `status`, `code`, `path`,
+  `limit`, `maximum`, `candidateCount`, `failedIndex`, `operationId`,
+  `pointer`, `requestId`, `retryAfterMs`, `attempted`, `mayHaveCommitted`,
+  `phase`, `receipts`). Optional diagnostics are safe, stable values only;
+  no body, header, candidate content, upload data, or signed URL is exposed.
 - The complete serialized result is capped at 131,072 bytes; larger output
   degrades to a structured usage error. Collections paginate with exact
   continuations.
@@ -88,15 +102,10 @@ through the host bridge.
 - The Plaky API reports no total item count; `hasMore` is the honest
   indicator that the board holds more items than the snapshot.
 
-Future writes (design note): the app stays read-only in v1. A later
-release can add widget-initiated edits by bridging the existing mutation
-contract into the UI: the widget calls `plaky_plan_mutation` through the
-host bridge to build a validated plan, shows the plan to the user inside
-the widget, and only then calls `plaky_execute_mutation_workflow` — first
-with the default `dryRun=true` echo, then with `dryRun=false` after an
-explicit in-widget confirmation. The server-side scope gates are
-unchanged: without the `write` scope those tools do not mount, so a
-widget can never widen access.
+The app stays read-only. It accepts messages only from its parent, uses a
+strict color allowlist, places unknown or ungrouped items in an explicit
+group, and handles teardown by removing listeners, rejecting pending bridge
+calls, and disabling controls. It does not use widget-initiated writes.
 
 ## Doc resources (skills over MCP)
 
@@ -114,6 +123,13 @@ Hosts discover both through the standard `resources/list` and
 `resources/read` requests. The Skills-over-MCP extension (SEP-2640) is
 not final; when it stabilizes, these resources can adopt its metadata
 without changing URIs.
+
+The server adds private five-minute cache hints to `server/discover`,
+`tools/list`, `prompts/list`, `resources/list`, `resources/templates/list`,
+and `resources/read`. Dynamic tool calls receive no extra cache behavior.
+The server supports modern and legacy protocol clients; tasks, sampling, and
+server-initiated elicitation are intentionally absent until a product
+requirement and host matrix justify them.
 
 ## Legacy hosts
 

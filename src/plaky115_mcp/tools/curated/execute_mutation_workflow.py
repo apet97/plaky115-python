@@ -18,13 +18,14 @@ from plaky115.errors import PlakyError, PlakyPartialMutationError
 from plaky115.runtime.mutations import AttemptTracker
 from plaky115_mcp.compaction import error_result, make_result
 from plaky115_mcp.errors import envelope_wire, error_envelope, internal_error, usage_error
-from plaky115_mcp.outputs import EntityOutput
+from plaky115_mcp.outputs import MutationWorkflowOutput
 from plaky115_mcp.registry import ToolSpec
 from plaky115_mcp.tools.curated.workflow_registry import (
     MUTATION_WORKFLOW_IDS,
     run_bulk_update,
     run_mutation_workflow,
 )
+from plaky115_mcp.workflow_models import MUTATION_WORKFLOW_SCHEMA, validate_mutation_workflow
 
 
 def build_execute_mutation_workflow(client: AsyncPlakyClient) -> ToolSpec:
@@ -32,8 +33,8 @@ def build_execute_mutation_workflow(client: AsyncPlakyClient) -> ToolSpec:
         workflow: str,
         args: dict[str, Any],
         ctx: Context,  # type: ignore[type-arg]
-        dryRun: bool = True,
-    ) -> Annotated[CallToolResult, EntityOutput]:
+        dryRun: Any = True,
+    ) -> Annotated[CallToolResult, MutationWorkflowOutput]:
         trackers: list[AttemptTracker] = []
         try:
             if workflow not in MUTATION_WORKFLOW_IDS:
@@ -41,6 +42,7 @@ def build_execute_mutation_workflow(client: AsyncPlakyClient) -> ToolSpec:
                     f"workflow must be one of {', '.join(MUTATION_WORKFLOW_IDS)}"
                 )
                 return error_result(envelope_wire(envelope), "Unknown mutation workflow.")
+            workflow, args, dryRun = validate_mutation_workflow(workflow, args, dryRun)
             if workflow == "items.updateFields" and isinstance(args.get("updates"), list):
                 text, wire = await run_bulk_update(client, args, dry_run=dryRun, ctx=ctx)
                 return make_result(text=text, structured=wire)
@@ -58,7 +60,10 @@ def build_execute_mutation_workflow(client: AsyncPlakyClient) -> ToolSpec:
             tracker = trackers[0] if trackers else None
             return error_result(envelope_wire(error_envelope(exc, tracker)), str(exc))
         except Exception as exc:
-            return error_result(envelope_wire(internal_error(exc)), "Internal server error.")
+            tracker = trackers[0] if trackers else None
+            return error_result(
+                envelope_wire(internal_error(exc, tracker)), "Internal server error."
+            )
 
     return ToolSpec(
         name="plaky_execute_mutation_workflow",
@@ -79,4 +84,5 @@ def build_execute_mutation_workflow(client: AsyncPlakyClient) -> ToolSpec:
             open_world_hint=True,
         ),
         kind="curated",
+        parameters=MUTATION_WORKFLOW_SCHEMA,
     )

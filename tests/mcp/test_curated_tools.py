@@ -139,7 +139,7 @@ async def test_plan_mutation_operations() -> None:
     async with Client(server) as client:
         cases: list[tuple[str, dict[str, Any]]] = [
             ("createItem", {"body": {"title": "T"}}),
-            ("updateItemFields", {"itemId": "3", "body": {"s": "1"}}),
+            ("updateItemFields", {"itemId": "3", "body": {"s": {"value": "1"}}}),
             ("createItemComment", {"itemId": "3", "body": {"text": "hi"}}),
             (
                 "updateItemComment",
@@ -178,12 +178,96 @@ async def test_plan_mutation_operations() -> None:
             "plaky_plan_mutation",
             {"operation": "deleteEverything", "spaceId": "1", "boardId": "7", "body": {}},
         )
-        assert unknown.structured_content["error"]["category"] == "usage"
+        assert unknown.structured_content["error"]["category"] == "validation"
         missing = await client.call_tool(
             "plaky_plan_mutation",
             {"operation": "updateItemFields", "spaceId": "1", "boardId": "7", "body": {}},
         )
         assert missing.structured_content["error"]["category"] == "validation"
+
+        for field in (
+            "spaceId",
+            "boardId",
+            "itemId",
+            "itemCommentId",
+            "itemGroupId",
+            "itemFileId",
+        ):
+            result = await client.call_tool(
+                "plaky_plan_mutation",
+                {
+                    "operation": "createItem",
+                    "spaceId": "1",
+                    "boardId": "7",
+                    "body": {"title": "T"},
+                    field: True,
+                },
+            )
+            assert result.is_error is True, field
+
+
+async def test_workflow_body_validation_stops_before_dispatch() -> None:
+    calls: list[str] = []
+
+    def recording_handler(request: httpx2.Request) -> httpx2.Response:
+        calls.append(request.url.path)
+        return httpx2.Response(500)
+
+    sdk = AsyncPlakyClient(
+        api_key="plk_x", max_retries=0, transport=httpx2.MockTransport(recording_handler)
+    )
+    server = build_server(
+        ServerSettings(api_key="plk_x", mode="curated", scopes=frozenset({"read", "write"})),
+        sdk,
+    )
+    cases: list[tuple[str, dict[str, Any]]] = [
+        ("items.create", {"body": {"title": "Item", "definitelyUnknown": True}}),
+        (
+            "items.updateFields",
+            {"itemId": "3", "body": {"field-1": {"value": "x"}, "definitelyUnknown": True}},
+        ),
+        ("comments.add", {"itemId": "3", "body": {"text": "Note", "definitelyUnknown": True}}),
+        ("itemGroups.create", {"body": {"title": "Group", "definitelyUnknown": True}}),
+        (
+            "itemGroups.update",
+            {
+                "itemGroupId": "4",
+                "body": {"title": "Group", "ranking": "a", "definitelyUnknown": True},
+            },
+        ),
+        (
+            "itemFiles.upload",
+            {
+                "itemId": "3",
+                "body": {
+                    "fileBase64": FILE_B64,
+                    "fileName": "file.txt",
+                    "definitelyUnknown": True,
+                },
+            },
+        ),
+        (
+            "itemFiles.update",
+            {
+                "itemId": "3",
+                "itemFileId": "5",
+                "body": {"name": "file.txt", "definitelyUnknown": True},
+            },
+        ),
+    ]
+    async with Client(server) as client:
+        for workflow, extra in cases:
+            result = await client.call_tool(
+                "plaky_execute_mutation_workflow",
+                {
+                    "workflow": workflow,
+                    "args": {"spaceId": "1", "boardId": "2", **extra},
+                    "dryRun": False,
+                },
+            )
+            assert result.is_error is True, workflow
+            assert result.structured_content["error"]["category"] == "validation", workflow
+    assert calls == []
 
 
 async def test_read_workflows() -> None:
@@ -291,7 +375,12 @@ async def test_mutation_workflows_execute() -> None:
             ),
             (
                 "items.updateFields",
-                {"spaceId": "1", "boardId": "7", "itemId": "3", "body": {"s": "1"}},
+                {
+                    "spaceId": "1",
+                    "boardId": "7",
+                    "itemId": "3",
+                    "body": {"s": {"value": "1"}},
+                },
             ),
         ]
         for workflow, args in cases:
@@ -309,7 +398,7 @@ async def test_mutation_workflows_execute() -> None:
                 "args": {
                     "spaceId": "1",
                     "boardId": "7",
-                    "updates": [{"item_id": "3", "body": {"s": "1"}}],
+                    "updates": [{"item_id": "3", "body": {"s": {"value": "1"}}}],
                 },
                 "dryRun": False,
             },
@@ -328,7 +417,7 @@ async def test_bulk_update_dry_run_is_labeled() -> None:
                 "args": {
                     "spaceId": "1",
                     "boardId": "7",
-                    "updates": [{"item_id": "3", "body": {"s": "1"}}],
+                    "updates": [{"item_id": "3", "body": {"s": {"value": "1"}}}],
                 },
             },
         )

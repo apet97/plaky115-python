@@ -37,9 +37,11 @@ All 32 operations at pinned source 33ae2926 (v1.0.11).
 | updateItemGroup | PUT /v1/public/spaces/{spaceId}/boards/{boardId}/item-groups/{itemGroupId} | `client.item_groups.update` | `plaky_update_item_group` | write |
 | uploadItemFile | POST /v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/files | `client.item_files.upload` | `plaky_upload_item_file` | write |
 
-Curated tools: plaky_search_docs, plaky_workspace_context, plaky_find,
-plaky_plan_mutation, plaky_execute_read_workflow,
-plaky_execute_mutation_workflow, plaky_execute_workflow (compat flag only).
+Default curated read tools: plaky_search_docs, plaky_workspace_context,
+plaky_find, plaky_board_view, plaky_plan_mutation,
+plaky_execute_read_workflow. The active write-scoped curated tool is
+plaky_execute_mutation_workflow. plaky_execute_workflow is compatibility-only
+and requires its explicit flag.
 
 Workflow IDs: workspace.map, items.search, comments.thread, export.items,
 items.create, items.updateFields, comments.add, itemGroups.create,

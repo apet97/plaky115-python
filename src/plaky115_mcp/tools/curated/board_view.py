@@ -20,7 +20,7 @@ from plaky115.resolvers import async_resolve_space_and_board
 from plaky115_mcp.apps import BOARD_VIEW_URI
 from plaky115_mcp.compaction import error_result, make_result
 from plaky115_mcp.errors import envelope_wire, error_envelope, internal_error
-from plaky115_mcp.outputs import EntityOutput
+from plaky115_mcp.outputs import BoardViewOutput
 from plaky115_mcp.registry import ToolSpec
 
 MAX_ITEMS = 500
@@ -131,7 +131,7 @@ def build_board_view(client: AsyncPlakyClient) -> ToolSpec:
     async def plaky_board_view(
         spaceId: int | str,
         board: int | str,
-    ) -> Annotated[CallToolResult, EntityOutput]:
+    ) -> Annotated[CallToolResult, BoardViewOutput]:
         try:
             space, resolved = await async_resolve_space_and_board(
                 client, space=spaceId, board=board

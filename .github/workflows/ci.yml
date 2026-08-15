@@ -42,3 +42,14 @@ jobs:
         run: uv sync --frozen --all-extras --group dev
       - name: Offline verification
         run: uv run --frozen python scripts/verify.py --offline
+
+  required:
+    name: required
+    needs: offline-verify
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every offline verification job
+        env:
+          OFFLINE_VERIFY_RESULT: ${{ needs.offline-verify.result }}
+        run: test "$OFFLINE_VERIFY_RESULT" = "success"

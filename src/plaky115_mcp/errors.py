@@ -25,6 +25,7 @@ from plaky115.errors import (
     PlakyOutputLimitError,
     PlakyPartialMutationError,
     PlakyRateLimitError,
+    PlakyResponseContractError,
     PlakyResponseTooLargeError,
     PlakyTimeoutError,
     UploadValidationError,
@@ -36,7 +37,7 @@ logger = logging.getLogger("plaky115_mcp")
 
 
 class ReceiptModel(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
     operation: str
     index: int
@@ -45,11 +46,18 @@ class ReceiptModel(BaseModel):
     may_have_committed: bool = Field(alias="mayHaveCommitted")
     phase: str
     target_ids: dict[str, str] = Field(alias="targetIds", default_factory=lambda: {})
-    error: dict[str, str] | None = None
+    error: ReceiptError | None = None
+
+
+class ReceiptError(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    message: str
 
 
 class ErrorDetail(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
     category: str
     name: str
@@ -59,6 +67,13 @@ class ErrorDetail(BaseModel):
     code: str | int | None = None
     request_id: str | None = Field(alias="requestId", default=None)
     retry_after_ms: float | None = Field(alias="retryAfterMs", default=None)
+    path: str | None = None
+    limit: str | int | None = None
+    maximum: int | None = None
+    candidate_count: int | None = Field(alias="candidateCount", default=None)
+    failed_index: int | None = Field(alias="failedIndex", default=None)
+    operation_id: str | None = Field(alias="operationId", default=None)
+    pointer: str | None = None
     attempted: bool | None = None
     may_have_committed: bool | None = Field(alias="mayHaveCommitted", default=None)
     phase: str | None = None
@@ -66,6 +81,8 @@ class ErrorDetail(BaseModel):
 
 
 class ErrorEnvelope(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     error: ErrorDetail
 
 
@@ -79,7 +96,7 @@ def receipt_model(receipt: MutationReceipt) -> ReceiptModel:
         phase=receipt.phase,
         targetIds=dict(receipt.target_ids),
         error=(
-            {"name": receipt.error.name, "message": receipt.error.message}
+            ReceiptError(name=receipt.error.name, message=receipt.error.message)
             if receipt.error is not None
             else None
         ),
@@ -109,6 +126,24 @@ def _category(error: BaseException) -> tuple[str, bool]:
     return "plaky", False
 
 
+def _mutation_truth(
+    tracker: AttemptTracker | None, receipts: tuple[MutationReceipt, ...]
+) -> tuple[bool, bool, str]:
+    if receipts:
+        attempted = any(receipt.attempted for receipt in receipts)
+        may_have_committed = any(receipt.may_have_committed for receipt in receipts)
+        if may_have_committed:
+            return attempted, True, "response"
+        if all(receipt.phase == "completed" for receipt in receipts):
+            return attempted, False, "completed"
+        if any(receipt.phase == "request" for receipt in receipts):
+            return attempted, False, "request"
+        return attempted, False, "preflight"
+    if tracker is not None:
+        return tracker.attempted, tracker.may_have_committed, tracker.phase
+    return False, False, "preflight"
+
+
 def error_envelope(
     error: BaseException,
     tracker: AttemptTracker | None = None,
@@ -121,14 +156,20 @@ def error_envelope(
         # A failure after dispatch is conservatively ambiguous.
         tracker.ambiguous(error)
     category, retryable = _category(error)
+    mutation_receipts = (
+        tuple(error.receipts) if isinstance(error, PlakyPartialMutationError) else (receipts or ())
+    )
+    attempted, may_have_committed, phase = _mutation_truth(tracker, mutation_receipts)
+    if may_have_committed:
+        retryable = False
     detail = ErrorDetail(
         category=category,
         name=type(error).__name__,
         message=presentation_text(str(error) or "Unknown error."),
         retryable=retryable,
-        attempted=tracker.attempted if tracker is not None else False,
-        mayHaveCommitted=tracker.may_have_committed if tracker is not None else False,
-        phase=tracker.phase if tracker is not None else "preflight",
+        attempted=attempted,
+        mayHaveCommitted=may_have_committed,
+        phase=phase,
     )
     if isinstance(error, PlakyApiError):
         detail.status = error.status
@@ -138,6 +179,26 @@ def error_envelope(
             detail.request_id = error.request_id
         if error.retry_after_ms is not None:
             detail.retry_after_ms = error.retry_after_ms
+    if isinstance(error, PlakyDecodeError):
+        if error.status is not None:
+            detail.status = error.status
+        if error.request_id is not None:
+            detail.request_id = error.request_id
+    if isinstance(error, PlakyResponseContractError):
+        detail.operation_id = error.operation_id
+        detail.pointer = presentation_text(error.pointer)
+    if isinstance(error, UploadValidationError):
+        detail.code = error.code
+        if error.path is not None:
+            detail.path = presentation_text(error.path)
+    if isinstance(error, PlakyOutputLimitError | PlakyResponseTooLargeError):
+        detail.limit = error.limit
+        if isinstance(error, PlakyOutputLimitError):
+            detail.maximum = error.maximum
+    if isinstance(error, PlakyAmbiguousMatchError):
+        detail.candidate_count = error.candidate_count
+    if isinstance(error, PlakyPartialMutationError):
+        detail.failed_index = error.failed_index
     if isinstance(error, PlakyPartialMutationError):
         detail.receipts = [receipt_model(r) for r in error.receipts]
     elif receipts:
@@ -159,26 +220,30 @@ def usage_error(message: str) -> ErrorEnvelope:
     )
 
 
-def internal_error(error: BaseException) -> ErrorEnvelope:
+def internal_error(
+    error: BaseException,
+    tracker: AttemptTracker | None = None,
+    receipts: tuple[MutationReceipt, ...] | None = None,
+) -> ErrorEnvelope:
     """Redact and log an unexpected programmer error with a correlation ID."""
     correlation_id = uuid.uuid4().hex[:12]
-    logger.error(
-        "internal error [%s]: %s: %s",
-        correlation_id,
-        type(error).__name__,
-        presentation_text(str(error)),
+    logger.error("internal error [%s]: %s", correlation_id, type(error).__name__)
+    if tracker is not None and tracker.receipt.status == "request-started":
+        tracker.ambiguous(error)
+    mutation_receipts = receipts or ()
+    attempted, may_have_committed, phase = _mutation_truth(tracker, mutation_receipts)
+    detail = ErrorDetail(
+        category="plaky",
+        name="InternalError",
+        message=f"Internal server error (correlation {correlation_id}).",
+        retryable=False,
+        attempted=attempted,
+        mayHaveCommitted=may_have_committed,
+        phase=phase,
     )
-    return ErrorEnvelope(
-        error=ErrorDetail(
-            category="plaky",
-            name="InternalError",
-            message=f"Internal server error (correlation {correlation_id}).",
-            retryable=False,
-            attempted=False,
-            mayHaveCommitted=False,
-            phase="preflight",
-        )
-    )
+    if receipts:
+        detail.receipts = [receipt_model(receipt) for receipt in receipts]
+    return ErrorEnvelope(error=detail)
 
 
 def envelope_wire(envelope: ErrorEnvelope) -> dict[str, Any]:
