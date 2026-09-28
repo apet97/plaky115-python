@@ -89,6 +89,21 @@ def _source_is_clean(source: Path) -> bool:
     return result.returncode == 0 and not result.stdout.strip()
 
 
+def _pinned_source_file(source: Path, path: str) -> bytes | None:
+    """A file as of the pinned commit, whatever the checkout has checked out.
+
+    The manifest pins a commit, not a working tree, so reading it from history
+    lets a developer's checkout sit on any branch. --require-source still
+    insists that HEAD is the pinned commit.
+    """
+    result = subprocess.run(
+        ["git", "-C", str(source), "show", f"{EXPECTED_SOURCE_COMMIT}:{path}"],
+        check=False,
+        capture_output=True,
+    )
+    return result.stdout if result.returncode == 0 else None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -189,18 +204,18 @@ def main() -> int:
         check(_source_is_clean(SOURCE_CHECKOUT), "source checkout must be clean")
     if provenance_checked:
         for f in manifest["files"]:
-            p = SOURCE_CHECKOUT / f["sourcePath"]
-            if not p.is_file():
-                check(False, f"manifest source file missing: {f['sourcePath']}")
+            content = _pinned_source_file(SOURCE_CHECKOUT, f["sourcePath"])
+            if content is None:
+                check(
+                    False, f"manifest source file missing at the pinned commit: {f['sourcePath']}"
+                )
                 continue
-            digest = hashlib.sha256(p.read_bytes()).hexdigest()
+            digest = hashlib.sha256(content).hexdigest()
             check(digest == f["sourceSha256"], f"manifest hash drift for {f['sourcePath']}")
-        # Verbatim copies must be byte-identical to their targets.
-        for f in manifest["files"]:
+            # Verbatim copies must be byte-identical to their targets.
             if f["translation"] == "verbatim copy":
-                src = (SOURCE_CHECKOUT / f["sourcePath"]).read_bytes()
                 dst = (REPO / f["target"]).read_bytes()
-                check(src == dst, f"verbatim copy drift: {f['target']}")
+                check(content == dst, f"verbatim copy drift: {f['target']}")
 
     # The upstream mirror keeps Plaky's raw operationIds (e.g. getSpaces);
     # canonical operationIds are assigned by the overrides layer, keyed by
