@@ -107,6 +107,10 @@ request it refuses with 429 (of 600 burst creates, exactly the 500 answered
 have committed, so it makes exactly one network attempt, even with an
 explicit `idempotency_key`.
 
+Mutation receipts follow the same rule. A failure before dispatch is
+`failed`; a 429 after dispatch is `rejected` (attempted, not committed);
+any other failure after dispatch is `ambiguous` with `may_have_committed`.
+
 ## Rate limit
 
 Plaky allows 200 requests per user per minute and answers anything beyond

@@ -3,7 +3,9 @@
 Ported from sdk/src/runtime/mutations.ts at the pinned source
 (docs/port/spec-transport.md, docs/port/spec-helpers.md). Receipts are
 immutable, redacted, and conservative: any failure after request dispatch
-is recorded as ambiguous with may_have_committed=True.
+is recorded as ambiguous with may_have_committed=True, except a 429. Plaky
+never commits a request it refuses with 429 (measured 2026-09-22), so that
+receipt is "rejected": attempted, and definitely not committed.
 """
 
 from __future__ import annotations
@@ -11,9 +13,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from typing import Literal
 
+from plaky115.errors import PlakyRateLimitError
 from plaky115.runtime.redaction import bound_text
 
-MutationReceiptStatus = Literal["planned", "request-started", "completed", "failed", "ambiguous"]
+MutationReceiptStatus = Literal[
+    "planned", "request-started", "completed", "failed", "rejected", "ambiguous"
+]
 MutationPhase = Literal["preflight", "request", "response", "completed"]
 
 MAX_MUTATION_TEXT_LENGTH = 1024
@@ -74,10 +79,19 @@ def transition_receipt(
         receipt,
         status=status,
         phase=phase,
-        attempted=status in ("request-started", "completed", "ambiguous"),
+        attempted=status in ("request-started", "completed", "rejected", "ambiguous"),
         may_have_committed=status in ("ambiguous", "request-started"),
         error=mutation_error_summary(error) if error is not None else receipt.error,
     )
+
+
+def settle_failed_receipt(receipt: MutationReceipt, error: BaseException) -> MutationReceipt:
+    """Record a failed call: failed before dispatch, rejected on 429, else ambiguous."""
+    if not receipt.attempted:
+        return transition_receipt(receipt, "failed", "preflight", error)
+    if isinstance(error, PlakyRateLimitError):
+        return transition_receipt(receipt, "rejected", "response", error)
+    return transition_receipt(receipt, "ambiguous", "response", error)
 
 
 class AttemptTracker:
@@ -114,3 +128,7 @@ class AttemptTracker:
 
     def ambiguous(self, error: BaseException) -> None:
         self._receipt = transition_receipt(self._receipt, "ambiguous", "response", error)
+
+    def settle_failure(self, error: BaseException) -> None:
+        """Record a failure after dispatch; see settle_failed_receipt."""
+        self._receipt = settle_failed_receipt(self._receipt, error)

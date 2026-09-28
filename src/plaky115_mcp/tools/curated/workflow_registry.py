@@ -8,7 +8,6 @@ from typing import Any, cast
 from mcp.server.mcpserver import Context
 
 from plaky115.async_client import AsyncPlakyClient
-from plaky115.resources._common import RequestOverrides
 from plaky115.runtime.chunks import PageCursor
 from plaky115.runtime.mutations import AttemptTracker
 from plaky115.runtime.upload import Base64UploadInput
@@ -17,7 +16,7 @@ from plaky115.workflows.export import async_read_item_export_chunk
 from plaky115.workflows.search import async_search_items_detailed
 from plaky115.workflows.workspace import async_workspace_map
 from plaky115_mcp.compaction import compact_entity
-from plaky115_mcp.errors import receipt_model
+from plaky115_mcp.errors import receipt_model, write_request_options
 from plaky115_mcp.tools.curated.plan_mutation import normalize_for_operation, plan_wire
 
 READ_WORKFLOW_IDS = ("workspace.map", "items.search", "comments.thread", "export.items")
@@ -239,7 +238,7 @@ async def run_mutation_workflow(
     tracker = AttemptTracker(operation, dict(plan.target_ids))
     if trackers_out is not None:
         trackers_out.append(tracker)
-    request_options = RequestOverrides(on_dispatch=tracker.request_started)
+    request_options = write_request_options(tracker)
     if ctx is not None:
         await ctx.report_progress(0, 1)
     if workflow == "items.create":

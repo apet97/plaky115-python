@@ -21,7 +21,12 @@ from plaky115.resolvers import (
     resolve_space_and_board,
 )
 from plaky115.resources._common import RequestOverrides
-from plaky115.runtime.mutations import MutationReceipt, new_receipt, transition_receipt
+from plaky115.runtime.mutations import (
+    MutationReceipt,
+    new_receipt,
+    settle_failed_receipt,
+    transition_receipt,
+)
 
 if TYPE_CHECKING:
     from plaky115.async_client import AsyncPlakyClient
@@ -102,9 +107,7 @@ async def async_bulk_update_items(
                 options=item_options,
             )
         except Exception as error:
-            status = "ambiguous" if receipts[index].attempted else "failed"
-            phase = "response" if receipts[index].attempted else "preflight"
-            receipts[index] = transition_receipt(receipts[index], status, phase, error)
+            receipts[index] = settle_failed_receipt(receipts[index], error)
             if throw_on_error:
                 raise PlakyPartialMutationError(
                     "Bulk item update has an unconfirmed mutation outcome.",
@@ -183,9 +186,7 @@ def bulk_update_items(
                 options=item_options,
             )
         except Exception as error:
-            status = "ambiguous" if receipts[index].attempted else "failed"
-            phase = "response" if receipts[index].attempted else "preflight"
-            receipts[index] = transition_receipt(receipts[index], status, phase, error)
+            receipts[index] = settle_failed_receipt(receipts[index], error)
             if throw_on_error:
                 raise PlakyPartialMutationError(
                     "Bulk item update has an unconfirmed mutation outcome.",

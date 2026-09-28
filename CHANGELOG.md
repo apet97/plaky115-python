@@ -14,6 +14,10 @@ Findings from a live monday.com → Plaky migration (measured 2026-09-21/23):
 - A 429 is replayed for every method, not only GET: Plaky never commits a
   request it refuses with 429. A write that meets a 5xx, timeout, or
   connection failure still makes exactly one attempt.
+- Mutation receipts gain the `rejected` status: a write refused with 429
+  was attempted and definitely not committed, so MCP errors report
+  `mayHaveCommitted: false` and `retryable: true` for it. MCP write tools
+  return a 429 at once instead of waiting out `Retry-After`.
 - New opt-in `RequestPacer` keeps a client under Plaky's 200-per-minute
   limit (190 per 60 s sliding window by default); every attempt claims a
   slot, and `with_options` shares it.
@@ -22,6 +26,10 @@ Findings from a live monday.com → Plaky migration (measured 2026-09-21/23):
 - New `rich_text_field` writes plain text as escaped HTML paragraphs.
 - Item group create and update require `color` again (in the SDK, the
   generated models, and the MCP schemas): the server answers 500 without it.
+- Tests are organized by behavior instead of coverage bucket, the flaky
+  body-phase timeout tests have wide margins, and the eval scorer tests run
+  in-process (7.4 s to 2.7 s for that file). Live read certification covers 18
+  operations, including `getSubscriptions`.
 - `docs/sdk.md` records the server behaviour behind these changes: list
   defaults, clearing rules per field type, the Person write shape, date
   offsets, ambiguous labels, and rewritten file names.

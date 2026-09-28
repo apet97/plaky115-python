@@ -308,7 +308,7 @@ def test_sync_search_parity() -> None:
 # --- bulk update ---------------------------------------------------------------
 
 
-def bulk_handler(fail_item: str | None) -> Any:
+def bulk_handler(fail_item: str | None, fail_status: int = 500) -> Any:
     def handler(request: httpx2.Request) -> httpx2.Response:
         path = request.url.path
         if path == "/v1/public/spaces/1":
@@ -318,7 +318,7 @@ def bulk_handler(fail_item: str | None) -> Any:
         if request.method == "PATCH":
             item_id = path.split("/items/")[1].split("/")[0]
             if item_id == fail_item:
-                return httpx2.Response(500, json={"message": "boom"})
+                return httpx2.Response(fail_status, json={"message": "boom"})
             return httpx2.Response(200, json={"id": int(item_id)})
         return httpx2.Response(404, json={"message": "nope"})
 
@@ -342,6 +342,24 @@ async def test_bulk_update_receipts() -> None:
     assert [r.status for r in receipts] == ["completed", "ambiguous", "completed"]
     assert receipts[1].may_have_committed is True
     assert receipts[1].error is not None
+
+
+async def test_bulk_update_receipt_for_a_429_is_rejected_not_ambiguous() -> None:
+    async with AsyncPlakyClient(
+        api_key="plk_x",
+        max_retries=0,
+        transport=httpx2.MockTransport(bulk_handler("4", fail_status=429)),
+    ) as client:
+        receipts = await async_bulk_update_items(
+            client,
+            space=1,
+            board=7,
+            updates=[{"item_id": 3, "body": {"f": 1}}, {"item_id": 4, "body": {"f": 2}}],
+        )
+    assert [r.status for r in receipts] == ["completed", "rejected"]
+    assert receipts[1].attempted is True
+    assert receipts[1].may_have_committed is False
+    assert receipts[1].phase == "response"
 
 
 async def test_bulk_update_validation_before_network() -> None:

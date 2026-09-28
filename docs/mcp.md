@@ -78,6 +78,11 @@ plaky115-mcp --transport streamable-http --host 127.0.0.1 --port 8000
   are never accepted; base64 is never echoed back.
 - Mutation workflows default to dry-run; live execution returns durable
   attempt receipts.
+- A write refused with 429 returns at once instead of waiting out
+  `Retry-After`: `retryable: true`, `retryAfterMs` set, and
+  `mayHaveCommitted: false`, since Plaky never commits a request it refuses
+  with 429. Any other failure after dispatch reports `mayHaveCommitted:
+  true`.
 
 ## Board View app (MCP Apps)
 

@@ -528,7 +528,7 @@ def _sdk_call(descriptor: dict[str, Any]) -> str:
     elif descriptor["request"]["kind"] == "json":
         args.append("body=body")
     if descriptor["mutation"]:
-        args.append("options=RequestOverrides(on_dispatch=tracker.request_started)")
+        args.append("options=write_request_options(tracker)")
     call = f"client.{resource}.{method}({', '.join(args)})"
     if op_id in ("createItem", "updateItemFields"):
         # These SDK methods can also return DryRunPlan; the raw tool always
@@ -634,7 +634,6 @@ def _generate_raw_tool(descriptor: dict[str, Any]) -> str:
         lines.append("from plaky115.runtime.upload import Base64UploadInput, normalize_upload")
     if is_mutation:
         lines.append("from plaky115.runtime.mutations import AttemptTracker")
-        lines.append("from plaky115.resources._common import RequestOverrides")
     lines.append("from plaky115_mcp.compaction import (")
     compaction_imports: list[str] = sorted(
         {
@@ -654,7 +653,10 @@ def _generate_raw_tool(descriptor: dict[str, Any]) -> str:
     for name in compaction_imports:
         lines.append(f"    {name},")
     lines.append(")")
-    lines.append("from plaky115_mcp.errors import envelope_wire, error_envelope, internal_error")
+    error_imports = ["envelope_wire", "error_envelope", "internal_error"]
+    if is_mutation:
+        error_imports.append("write_request_options")
+    lines.append(f"from plaky115_mcp.errors import {', '.join(error_imports)}")
     lines.append(f"from plaky115_mcp.outputs import {output}")
     lines.append("from plaky115_mcp.registry import ToolSpec")
     lines.append("from plaky115_mcp.workflow_models import CanonicalId")

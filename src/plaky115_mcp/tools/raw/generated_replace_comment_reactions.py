@@ -17,14 +17,18 @@ from pydantic import Field
 from plaky115.async_client import AsyncPlakyClient
 from plaky115.errors import PlakyError
 from plaky115.models.generated import ReactionPutRequest
-from plaky115.resources._common import RequestOverrides
 from plaky115.runtime.mutations import AttemptTracker
 from plaky115_mcp.compaction import (
     compact_entity,
     error_result,
     make_result,
 )
-from plaky115_mcp.errors import envelope_wire, error_envelope, internal_error
+from plaky115_mcp.errors import (
+    envelope_wire,
+    error_envelope,
+    internal_error,
+    write_request_options,
+)
 from plaky115_mcp.outputs import EntityOutput
 from plaky115_mcp.registry import ToolSpec
 from plaky115_mcp.workflow_models import CanonicalId
@@ -63,7 +67,7 @@ def build_tool(client: AsyncPlakyClient) -> ToolSpec:
                 item_id=itemId,
                 item_comment_id=itemCommentId,
                 body=body,
-                options=RequestOverrides(on_dispatch=tracker.request_started),
+                options=write_request_options(tracker),
             )
             tracker.completed()
             wire = compact_entity(

@@ -450,3 +450,33 @@ async def test_subscription_raw_tools_read_and_replace_subscribers() -> None:
     assert not replaced.is_error
     assert replaced.structured_content == {"ok": True}
     assert sent == [{"userIds": [4, 5]}]
+
+
+async def test_mcp_writes_return_a_429_at_once_as_retryable_and_uncommitted() -> None:
+    writes: list[str] = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        if request.method == "POST":
+            writes.append(request.url.path)
+            return httpx2.Response(429, headers={"retry-after": "60"})
+        return api_handler(request)
+
+    # The client's default budget would wait out Retry-After; MCP writes must not.
+    sdk = AsyncPlakyClient(api_key="plk_x", max_retries=2, transport=httpx2.MockTransport(handler))
+    server = build_server(settings(mode="all", scopes=ALL_SCOPES), sdk)
+    args = {"spaceId": "1", "boardId": "7", "body": {"title": "T"}}
+    async with Client(server) as client:
+        raw = await client.call_tool("plaky_create_item", args)
+        curated = await client.call_tool(
+            "plaky_execute_mutation_workflow",
+            {"workflow": "items.create", "args": args, "dryRun": False},
+        )
+    assert writes == ["/v1/public/spaces/1/boards/7/items"] * 2
+    for result in (raw, curated):
+        assert result.is_error
+        error = result.structured_content["error"]
+        assert error["status"] == 429
+        assert error["retryable"] is True
+        assert error["attempted"] is True
+        assert error["mayHaveCommitted"] is False
+        assert error["phase"] == "response"

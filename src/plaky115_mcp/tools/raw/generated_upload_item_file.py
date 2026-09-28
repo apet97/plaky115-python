@@ -16,7 +16,6 @@ from pydantic import Field, StrictStr
 
 from plaky115.async_client import AsyncPlakyClient
 from plaky115.errors import PlakyError
-from plaky115.resources._common import RequestOverrides
 from plaky115.runtime.mutations import AttemptTracker
 from plaky115.runtime.upload import Base64UploadInput, normalize_upload
 from plaky115_mcp.compaction import (
@@ -24,7 +23,12 @@ from plaky115_mcp.compaction import (
     error_result,
     make_result,
 )
-from plaky115_mcp.errors import envelope_wire, error_envelope, internal_error
+from plaky115_mcp.errors import (
+    envelope_wire,
+    error_envelope,
+    internal_error,
+    write_request_options,
+)
 from plaky115_mcp.outputs import EntityOutput
 from plaky115_mcp.registry import ToolSpec
 from plaky115_mcp.workflow_models import CanonicalId
@@ -67,7 +71,7 @@ def build_tool(client: AsyncPlakyClient) -> ToolSpec:
                 file=upload.data,
                 file_name=upload.file_name,
                 content_type=upload.media_type,
-                options=RequestOverrides(on_dispatch=tracker.request_started),
+                options=write_request_options(tracker),
             )
             tracker.completed()
             wire = compact_entity(

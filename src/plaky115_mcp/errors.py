@@ -30,6 +30,7 @@ from plaky115.errors import (
     PlakyTimeoutError,
     UploadValidationError,
 )
+from plaky115.resources._common import RequestOverrides
 from plaky115.runtime.mutations import AttemptTracker, MutationReceipt
 from plaky115.runtime.redaction import presentation_text
 
@@ -103,6 +104,16 @@ def receipt_model(receipt: MutationReceipt) -> ReceiptModel:
     )
 
 
+def write_request_options(tracker: AttemptTracker) -> RequestOverrides:
+    """Request options for one MCP write: tracked, and never replayed after a 429.
+
+    The SDK would wait out Retry-After (up to 60 s per replay), which can
+    outlast a host's tool-call timeout. A 429 instead returns at once as a
+    retryable error whose receipt says nothing was committed.
+    """
+    return RequestOverrides(on_dispatch=tracker.request_started, max_retries=0)
+
+
 def _category(error: BaseException) -> tuple[str, bool]:
     """Map a domain failure to (category, retryable)."""
     if isinstance(error, PlakyRateLimitError):
@@ -136,6 +147,8 @@ def _mutation_truth(
             return attempted, True, "response"
         if all(receipt.phase == "completed" for receipt in receipts):
             return attempted, False, "completed"
+        if any(receipt.phase == "response" for receipt in receipts):
+            return attempted, False, "response"
         if any(receipt.phase == "request" for receipt in receipts):
             return attempted, False, "request"
         return attempted, False, "preflight"
@@ -153,8 +166,8 @@ def error_envelope(
     if isinstance(error, asyncio.CancelledError):  # pragma: no cover - guarded upstream
         raise error
     if tracker is not None and tracker.receipt.status == "request-started":
-        # A failure after dispatch is conservatively ambiguous.
-        tracker.ambiguous(error)
+        # Conservatively ambiguous after dispatch, unless Plaky refused it with 429.
+        tracker.settle_failure(error)
     category, retryable = _category(error)
     mutation_receipts = (
         tuple(error.receipts) if isinstance(error, PlakyPartialMutationError) else (receipts or ())

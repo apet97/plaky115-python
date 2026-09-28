@@ -4,7 +4,7 @@ import dataclasses
 
 import pytest
 
-from plaky115.errors import PlakyPartialMutationError
+from plaky115.errors import PlakyPartialMutationError, PlakyRateLimitError, PlakyServerError
 from plaky115.idempotency import (
     new_idempotency_key,
     resolve_explicit_idempotency_key,
@@ -14,6 +14,7 @@ from plaky115.runtime.mutations import (
     AttemptTracker,
     mutation_error_summary,
     new_receipt,
+    settle_failed_receipt,
     transition_receipt,
 )
 from plaky115.runtime.rate_limit import RateLimitTracker
@@ -38,6 +39,34 @@ def test_receipt_lifecycle_and_conservative_flags() -> None:
     assert failed.may_have_committed is True
     assert failed.error is not None
     assert "plk_key" not in failed.error.message
+
+
+def _api_error(cls: type[PlakyRateLimitError | PlakyServerError], status: int) -> Exception:
+    return cls("refused", status=status, method="POST", url="u", headers={})
+
+
+def test_failed_receipt_is_rejected_only_for_a_dispatched_429() -> None:
+    planned = new_receipt("items.create", 0, {})
+    started = transition_receipt(planned, "request-started", "request")
+    rate_limited = _api_error(PlakyRateLimitError, 429)
+    server_error = _api_error(PlakyServerError, 503)
+
+    before_dispatch = settle_failed_receipt(planned, rate_limited)
+    assert (before_dispatch.status, before_dispatch.attempted) == ("failed", False)
+
+    rejected = settle_failed_receipt(started, rate_limited)
+    assert rejected.status == "rejected"
+    assert (rejected.attempted, rejected.may_have_committed) == (True, False)
+    assert rejected.phase == "response"
+
+    # A 5xx may follow a commit, so it stays ambiguous.
+    ambiguous = settle_failed_receipt(started, server_error)
+    assert (ambiguous.status, ambiguous.may_have_committed) == ("ambiguous", True)
+
+    tracker = AttemptTracker("items.create")
+    tracker.request_started()
+    tracker.settle_failure(rate_limited)
+    assert tracker.receipt.status == "rejected"
 
 
 def test_receipts_are_immutable() -> None:
