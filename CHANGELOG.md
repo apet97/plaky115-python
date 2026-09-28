@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v1.3.0
 
 Findings from a live monday.com → Plaky migration (measured 2026-09-21/23):
 
