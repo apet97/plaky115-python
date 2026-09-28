@@ -2,11 +2,11 @@
 
 ## Read-only gate
 
-Requires an injected rotated `PLAKY115_API_KEY`. Runs the 17 read
+Requires an injected rotated `PLAKY115_API_KEY`. Runs the 18 read
 operations through four surfaces (direct HTTP probe, sync SDK, async SDK,
 generated raw MCP) plus curated workflows workspace.map, items.search,
-comments.thread, export.items. Acceptance per surface: 17 pass / 0 skip,
-or 15 pass plus the paired getItemFile/getItemFileDownload
+comments.thread, export.items. Acceptance per surface: 18 pass / 0 skip,
+or 16 pass plus the paired getItemFile/getItemFileDownload
 SKIP_PREREQUISITE only when a complete file listing proves no file exists.
 Records method/tool, sanitized status, root shape, pagination coverage,
 and counts only; signed URLs validate in memory and are never printed.

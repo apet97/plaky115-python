@@ -107,7 +107,7 @@ Deployment notes: [`docs/mcp.md`](docs/mcp.md) and
 
 | Guide | Contents |
 | --- | --- |
-| [docs/sdk.md](docs/sdk.md) | Clients, options, resources, errors, pagination |
+| [docs/sdk.md](docs/sdk.md) | Clients, resources, server behaviour, field values, errors, rate limit, pagination |
 | [docs/mcp.md](docs/mcp.md) | Modes, scopes, result contracts, deployment |
 | [docs/compatibility-inventory.md](docs/compatibility-inventory.md) | All 34 operations mapped to SDK + MCP names |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Architecture, generated boundaries, contract and evaluation workflow |
@@ -127,7 +127,7 @@ determinism, format/lint, strict pyright, tests with branch coverage,
 example syntax, docs gates, wheel/sdist build, twine, fresh-environment
 package smoke (base install without `mcp`, installed-wheel typing proof),
 four-scope secret scan, and lock integrity. The read-only live
-certification exercises all 17 read operations across four independent
+certification exercises all 18 read operations across four independent
 surfaces.
 
 ## License

@@ -1,4 +1,4 @@
-"""Read-only live certification: 17 reads across four surfaces.
+"""Read-only live certification: 18 reads across four surfaces.
 
 Requires an injected rotated PLAKY115_API_KEY (and optional
 PLAKY115_BASE_URL). Never prints keys, payloads, signed URLs, or tenant
@@ -8,7 +8,7 @@ Surfaces: direct-HTTP reference probe, sync SDK, async SDK, generated raw
 MCP tools. Also exercises curated read workflows workspace.map,
 items.search, comments.thread, and export.items.
 
-Acceptance per surface: 17 pass / 0 skip, or 15 pass plus exactly the
+Acceptance per surface: 18 pass / 0 skip, or 16 pass plus exactly the
 paired getItemFile/getItemFileDownload SKIP_PREREQUISITE when a complete
 file listing proves no file exists. Any other skip fails the gate.
 """
@@ -22,7 +22,10 @@ import json
 import os
 import sys
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
+
+OPERATIONS_FILE = Path(__file__).resolve().parent.parent / "contract/generated/operations.json"
 
 READ_OPERATIONS = [
     "listSpaces",
@@ -32,6 +35,7 @@ READ_OPERATIONS = [
     "listItems",
     "listSubitems",
     "getItem",
+    "getSubscriptions",
     "listItemComments",
     "listUsers",
     "getCurrentUser",
@@ -115,6 +119,10 @@ async def _run_async_sdk(key: str, base_url: str, scope: Scope) -> list[Receipt]
             space_id=scope.space_id, board_id=scope.board_id, item_id=scope.item_id
         )
         receipts.append(Receipt("async-sdk", "getItem", "PASS", "object"))
+        await client.subscriptions.get(
+            space_id=scope.space_id, board_id=scope.board_id, item_id=scope.item_id
+        )
+        receipts.append(Receipt("async-sdk", "getSubscriptions", "PASS", "object"))
         comments = await client.comments.list(
             space_id=scope.space_id, board_id=scope.board_id, item_id=scope.item_id
         )
@@ -251,6 +259,15 @@ def _run_sync_sdk(key: str, base_url: str, scope: Scope) -> list[Receipt]:
                 "object",
             ),
             (
+                "getSubscriptions",
+                lambda: client.subscriptions.get(
+                    space_id=space_id,
+                    board_id=board_id,
+                    item_id=item_id,
+                ),
+                "object",
+            ),
+            (
                 "listItemComments",
                 lambda: client.comments.list(
                     space_id=space_id,
@@ -374,6 +391,11 @@ async def _run_raw_mcp(key: str, base_url: str, scope: Scope) -> list[Receipt]:
             "boardId": board_id,
             "itemId": item_id,
         },
+        "getSubscriptions": {
+            "spaceId": space_id,
+            "boardId": board_id,
+            "itemId": item_id,
+        },
         "listItemComments": {
             "spaceId": space_id,
             "boardId": board_id,
@@ -413,10 +435,8 @@ async def _run_raw_mcp(key: str, base_url: str, scope: Scope) -> list[Receipt]:
         if file_id
         else {},
     }
-    tool_names = {
-        op: "plaky_" + "".join("_" + c.lower() if c.isupper() else c for c in op).lstrip("_")
-        for op in READ_OPERATIONS
-    }
+    descriptors = json.loads(OPERATIONS_FILE.read_text(encoding="utf-8"))["operations"]
+    tool_names = {d["operationId"]: d["mcpName"] for d in descriptors}
     async with Client(server) as client:
         for operation in READ_OPERATIONS:
             if operation in ("getItemFile", "getItemFileDownload") and not file_id:
@@ -451,6 +471,7 @@ def _run_direct_http(key: str, base_url: str, scope: Scope) -> list[Receipt]:
         "listItems": f"/v1/public/spaces/{s}/boards/{b}/items",
         "listSubitems": f"/v1/public/spaces/{s}/boards/{b}/items/{i}/sub-items",
         "getItem": f"/v1/public/spaces/{s}/boards/{b}/items/{i}",
+        "getSubscriptions": f"/v1/public/spaces/{s}/boards/{b}/items/{i}/subscriptions",
         "listItemComments": f"/v1/public/spaces/{s}/boards/{b}/items/{i}/comments",
         "listUsers": "/v1/public/users",
         "getCurrentUser": "/v1/public/users/me",
@@ -515,8 +536,8 @@ def _evaluate(receipts: list[Receipt]) -> bool:
         passes = sum(1 for r in rows if r.outcome == "PASS")
         skips = {r.operation for r in rows if r.outcome == "SKIP_PREREQUISITE"}
         fails = [r.operation for r in rows if r.outcome == "FAIL"]
-        valid = (passes == 17 and not skips) or (
-            passes == 15 and skips == {"getItemFile", "getItemFileDownload"}
+        valid = (passes == len(READ_OPERATIONS) and not skips) or (
+            passes == len(READ_OPERATIONS) - 2 and skips == {"getItemFile", "getItemFileDownload"}
         )
         if fails or not valid:
             ok = False
