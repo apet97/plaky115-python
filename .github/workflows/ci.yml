@@ -14,13 +14,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             python: "3.11"
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             python: "3.12"
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             python: "3.13"
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             python: "3.14"
           - os: windows-latest
             python: "3.13"
@@ -28,12 +28,12 @@ jobs:
             python: "3.13"
     runs-on: ${{ matrix.os }}
     steps:
-      # actions/checkout v4.2.2
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      # actions/checkout v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
-      # actions/setup-python v5.3.0
-      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b
+      # actions/setup-python v7.0.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: ${{ matrix.python }}
       - name: Install uv (pinned)
@@ -47,7 +47,7 @@ jobs:
     name: required
     needs: offline-verify
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Require every offline verification job
         env:
