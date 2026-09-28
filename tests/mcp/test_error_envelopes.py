@@ -97,3 +97,10 @@ def test_internal_error_logs_only_class_and_correlation(caplog: pytest.LogCaptur
     assert "RuntimeError" in caplog.text
     assert "Internal server error (correlation " in envelope.error.message
     assert canary not in envelope.error.message
+
+
+def test_error_envelope_receipts_kwarg() -> None:
+    from plaky115.runtime.mutations import new_receipt
+
+    envelope = error_envelope(ValueError("v"), receipts=(new_receipt("op", 0, {"a": "1"}),))
+    assert envelope.error.receipts[0].operation == "op"

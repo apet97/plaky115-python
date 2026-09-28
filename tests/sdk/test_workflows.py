@@ -7,6 +7,7 @@ from typing import Any
 import httpx2
 import pytest
 
+from fakes import paged_workspace_client
 from plaky115 import (
     AsyncPlakyClient,
     PlakyAmbiguousMatchError,
@@ -19,6 +20,7 @@ from plaky115 import (
     async_resolve_user,
     async_search_items_detailed,
     async_workspace_map,
+    bulk_update_items,
     export_items,
     field_label,
     field_values,
@@ -598,3 +600,44 @@ def test_iterate_csv_chunks_share_one_schema() -> None:
     # of the number of chunks.
     assert len(chunks) == 2
     assert len(board_calls) == 2
+
+
+def test_sync_bulk_update_receipts_and_errors() -> None:
+    with paged_workspace_client() as client:
+        receipts = bulk_update_items(
+            client,
+            space=1,
+            board=7,
+            updates=[{"item_id": 1, "body": {"s": "x"}}, {"item_id": 13, "body": {"s": "y"}}],
+        )
+        assert [r.status for r in receipts] == ["completed", "ambiguous"]
+        with pytest.raises(PlakyPartialMutationError):
+            bulk_update_items(
+                client,
+                space=1,
+                board=7,
+                updates=[{"item_id": 13, "body": {}}],
+                throw_on_error=True,
+            )
+        dry = bulk_update_items(
+            client, space=1, board=7, updates=[{"item_id": 1, "body": {}}], dry_run=True
+        )
+        assert dry[0].status == "planned"
+
+        progress: list[tuple[int, int]] = []
+        bulk_update_items(
+            client,
+            space=1,
+            board=7,
+            updates=[{"item_id": 1, "body": {}}],
+            on_progress=lambda done, total: progress.append((done, total)),
+        )
+        assert progress == [(1, 1)]
+
+        def explode(done: int, total: int) -> None:
+            raise RuntimeError("progress boom")
+
+        with pytest.raises(PlakyPartialMutationError, match="progress reporting failed"):
+            bulk_update_items(
+                client, space=1, board=7, updates=[{"item_id": 1, "body": {}}], on_progress=explode
+            )

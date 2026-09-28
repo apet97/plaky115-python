@@ -4,10 +4,9 @@ import base64
 
 import pytest
 
-from plaky115.errors import UploadValidationError
+from plaky115 import Base64UploadInput, UploadValidationError
 from plaky115.runtime.upload import (
     MAX_UPLOAD_BYTES_HARD_CEILING,
-    Base64UploadInput,
     decode_base64_upload,
     estimate_base64_decoded_bytes,
     normalize_upload,
@@ -118,3 +117,35 @@ def test_binary_upload_validation() -> None:
     assert validate_binary_upload(b"x").file_name == "blob"
     with pytest.raises(UploadValidationError, match="Decoded upload exceeds"):
         validate_binary_upload(b"x" * (MAX_UPLOAD_BYTES_HARD_CEILING + 1))
+
+
+def test_media_type_quote_and_escape_internals() -> None:
+    # Escaped quote and escaped backslash inside a quoted value survive.
+    assert normalize_upload_media_type('a/b; k="v\\"w"') == 'a/b;k="v\\"w"'
+    assert normalize_upload_media_type('a/b; k="v\\\\"') == 'a/b;k="v\\\\"'
+    # A quoted semicolon must not split parameters.
+    assert normalize_upload_media_type('a/b; k="v;w"') == 'a/b;k="v;w"'
+    for bad in (
+        'a/b; k="v\\',  # trailing escape
+        'a/b; k="v\x01"',  # control character in value
+        'a/b; k="v"x',  # trailing junk after close quote
+        "a/b; k=\x7f",
+    ):
+        with pytest.raises(UploadValidationError):
+            normalize_upload_media_type(bad)
+
+
+def test_media_type_quoted_parameter_edges() -> None:
+    assert normalize_upload_media_type('a/b; k="v w"; Z=t') == 'a/b;k="v w";z=t'
+    from plaky115 import UploadValidationError
+
+    for bad in ('a/b; k="unterminated', "a/b; k=v=w", "a/b; =v"):
+        with pytest.raises(UploadValidationError):
+            normalize_upload_media_type(bad)
+
+
+def test_upload_limit_type_check() -> None:
+    from plaky115 import UploadValidationError
+
+    with pytest.raises(UploadValidationError):
+        validate_upload_limit("many")  # type: ignore[arg-type]

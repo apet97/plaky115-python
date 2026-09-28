@@ -1,26 +1,14 @@
-"""Focused guards for newly introduced SDK and MCP validation seams."""
-
-from __future__ import annotations
+"""Workflow and plan-mutation inputs: schemas, validators, and bulk bounds."""
 
 import json
 from typing import Any
 
-import httpx2
 import pytest
 from jsonschema import Draft202012Validator
 from pydantic import ValidationError
 
-from plaky115.async_client import AsyncPlakyClient
-from plaky115.client import PlakyClient
-from plaky115.errors import (
-    PlakyBoundedResultError,
-    PlakyCancelledError,
-    PlakyDecodeError,
-    PlakyNotFoundError,
-)
-from plaky115.resolvers import async_resolve_user, resolve_user
+from plaky115.errors import PlakyCancelledError, PlakyDecodeError
 from plaky115.runtime.mutations import AttemptTracker
-from plaky115.runtime.request_builders import assert_trusted_request_url
 from plaky115_mcp.errors import envelope_wire, error_envelope, internal_error
 from plaky115_mcp.tools.curated.plan_mutation import normalize_for_operation
 from plaky115_mcp.workflow_models import (
@@ -31,18 +19,6 @@ from plaky115_mcp.workflow_models import (
     validate_mutation_workflow,
     validate_plan_mutation,
 )
-
-
-def test_trusted_origin_normalizes_default_ports_and_rejects_unsafe_origins() -> None:
-    assert_trusted_request_url("https://EXAMPLE.com:443/path", "https://example.com")
-    assert_trusted_request_url("http://example.com:80/path", "http://example.com")
-    for rewritten in (
-        "https://user@example.com/path",
-        "https://example.com:444/path",
-        "ftp://example.com/path",
-    ):
-        with pytest.raises(ValueError, match=r"invalid URL|trusted server origin"):
-            assert_trusted_request_url(rewritten, "https://example.com")
 
 
 def test_plan_normalizer_defends_missing_operation_specific_ids() -> None:
@@ -195,72 +171,3 @@ def test_workflow_body_contracts_reject_unknown_fixed_keys() -> None:
         "body": {"contract-defined-field": {"value": "x"}},
     }
     validate_mutation_workflow("items.updateFields", valid_dynamic_args, True)
-
-
-@pytest.mark.parametrize(
-    ("data", "has_more", "ref", "error"),
-    [
-        ([{"id": 5, "email": "ada@example.com"}], True, 5, None),
-        ([{"id": 6, "email": "ben@example.com"}], True, 5, PlakyBoundedResultError),
-        ([{"id": 6, "email": "ben@example.com"}], False, 5, PlakyNotFoundError),
-        (
-            [{"id": 5, "email": "ada@example.com"}],
-            True,
-            {"email": "ada@example.com"},
-            PlakyBoundedResultError,
-        ),
-    ],
-)
-def test_resolve_user_respects_bounded_pages(
-    data: list[dict[str, int | str]],
-    has_more: bool,
-    ref: int | dict[str, str],
-    error: type[Exception] | None,
-) -> None:
-    def handler(request: httpx2.Request) -> httpx2.Response:
-        assert request.url.path == "/v1/public/users"
-        return httpx2.Response(200, json={"data": data, "hasMore": has_more})
-
-    with PlakyClient(
-        api_key="plk_x", max_retries=0, transport=httpx2.MockTransport(handler)
-    ) as client:
-        if error is None:
-            assert resolve_user(client, ref).id == 5
-        else:
-            with pytest.raises(error):
-                resolve_user(client, ref)
-
-
-@pytest.mark.anyio
-@pytest.mark.parametrize(
-    ("data", "has_more", "ref", "error"),
-    [
-        ([{"id": 5, "email": "ada@example.com"}], True, 5, None),
-        ([{"id": 6, "email": "ben@example.com"}], True, 5, PlakyBoundedResultError),
-        ([{"id": 6, "email": "ben@example.com"}], False, 5, PlakyNotFoundError),
-        (
-            [{"id": 5, "email": "ada@example.com"}],
-            True,
-            {"email": "ada@example.com"},
-            PlakyBoundedResultError,
-        ),
-    ],
-)
-async def test_async_resolve_user_respects_bounded_pages(
-    data: list[dict[str, int | str]],
-    has_more: bool,
-    ref: int | dict[str, str],
-    error: type[Exception] | None,
-) -> None:
-    def handler(request: httpx2.Request) -> httpx2.Response:
-        assert request.url.path == "/v1/public/users"
-        return httpx2.Response(200, json={"data": data, "hasMore": has_more})
-
-    async with AsyncPlakyClient(
-        api_key="plk_x", max_retries=0, transport=httpx2.MockTransport(handler)
-    ) as client:
-        if error is None:
-            assert (await async_resolve_user(client, ref)).id == 5
-        else:
-            with pytest.raises(error):
-                await async_resolve_user(client, ref)

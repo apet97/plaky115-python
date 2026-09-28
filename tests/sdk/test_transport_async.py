@@ -13,26 +13,10 @@ import pytest
 
 import plaky115.errors as errors
 import plaky115.runtime.async_transport as transport_module
-from plaky115.http import RequestOptions, RequestSpec, async_request, async_request_with_response
+from fakes import SERVER, make_options, mock_client
+from plaky115.http import RequestSpec, async_request, async_request_with_response
 
 pytestmark = pytest.mark.anyio
-
-SERVER = "https://api.example.test"
-
-
-def make_options(**overrides: Any) -> RequestOptions:
-    defaults: dict[str, Any] = {
-        "api_key": "plk_test_key",
-        "server_url": SERVER,
-        "timeout": 5.0,
-        "max_retries": 0,
-    }
-    defaults.update(overrides)
-    return RequestOptions(**defaults)
-
-
-def mock_client(handler: Any) -> httpx2.AsyncClient:
-    return httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
 
 
 @contextmanager
@@ -464,14 +448,20 @@ async def test_timeout_before_headers_retries_only_configured_read_attempts() ->
     assert 1 <= calls[0] <= dispatches[0]
 
 
+# Body-phase timeouts: headers must arrive well inside the budget, even on a
+# loaded machine, while the body arrives well outside it.
+BODY_PHASE_TIMEOUT = 0.25
+BODY_DELAY = 0.75
+
+
 async def test_timeout_after_headers_is_mapped_without_a_retry() -> None:
-    with delayed_http_server(delay_before_body=0.05) as (base_url, calls):
+    with delayed_http_server(delay_before_body=BODY_DELAY) as (base_url, calls):
         async with httpx2.AsyncClient() as client:
             with pytest.raises(errors.PlakyTimeoutError):
                 await async_request(
                     client,
                     RequestSpec(method="GET", path="/x"),
-                    make_options(server_url=base_url, timeout=0.01, max_retries=2),
+                    make_options(server_url=base_url, timeout=BODY_PHASE_TIMEOUT, max_retries=2),
                 )
     assert calls[0] == 1
 
@@ -498,12 +488,12 @@ async def test_response_hook_uses_the_remaining_attempt_budget_without_retry() -
 
 
 async def test_requested_async_stream_maps_iteration_timeout_and_closes_once() -> None:
-    with delayed_http_server(delay_before_body=0.05) as (base_url, calls):
+    with delayed_http_server(delay_before_body=BODY_DELAY) as (base_url, calls):
         async with httpx2.AsyncClient() as client:
             response = await async_request_with_response(
                 client,
                 RequestSpec(method="GET", path="/x", response_type="stream"),
-                make_options(server_url=base_url, timeout=0.01, max_retries=2),
+                make_options(server_url=base_url, timeout=BODY_PHASE_TIMEOUT, max_retries=2),
             )
             with pytest.raises(errors.PlakyTimeoutError):
                 await anext(response.data)

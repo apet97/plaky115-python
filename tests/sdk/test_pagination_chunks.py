@@ -1,15 +1,32 @@
-"""Pagination root and bounded-chunk gates (plan Phase 5)."""
+"""Pagination: strict page roots, paginators, comment iteration, and bounded chunks."""
 
+import json
 from typing import Any
 
+import httpx2
 import pytest
 
+from fakes import paged_workspace_client
+from plaky115 import (
+    AsyncPlakyClient,
+    Page,
+    PlakyClient,
+    iterate_item_chunks,
+    iterate_item_export_chunks,
+    read_item_chunk,
+    read_item_export_chunk,
+)
 from plaky115.errors import (
     PlakyMaterializationLimitError,
     PlakyOutputLimitError,
     PlakyResponseContractError,
 )
-from plaky115.pagination import assert_array_result, assert_paged_result
+from plaky115.pagination import (
+    AsyncPaginator,
+    SyncPaginator,
+    assert_array_result,
+    assert_paged_result,
+)
 from plaky115.runtime.chunks import (
     DEFAULT_CHUNK_MAX_BYTES,
     DEFAULT_CHUNK_MAX_ITEMS,
@@ -20,6 +37,7 @@ from plaky115.runtime.chunks import (
     assert_materialized_collection,
     iterate_paged_chunks,
     read_paged_chunk,
+    sync_read_paged_chunk,
     utf8_byte_length,
 )
 
@@ -164,3 +182,127 @@ def test_materialized_collection_guards() -> None:
     with pytest.raises(PlakyMaterializationLimitError):
         assert_materialized_collection([{"k": "x" * 100}], 10, 20)
     assert_materialized_collection([1, 2], 2, 1000)
+
+
+def _pages(page: int, size: int) -> Page[int]:
+    data = {1: [1, 2], 2: [3]}[page]
+    return Page[int].model_validate({"data": data, "hasMore": page == 1})
+
+
+def test_sync_paginator_methods() -> None:
+    paginator = SyncPaginator(_pages, page_size=2)
+    assert paginator.first_page().data == [1, 2]
+    assert [p.data for p in paginator.pages()] == [[1, 2], [3]]
+    assert paginator.to_list() == [1, 2, 3]
+    assert SyncPaginator(_pages, page_size=2).to_list(limit=2) == [1, 2]
+    assert list(SyncPaginator(_pages, page_size=2, limit=1)) == [1]
+    with pytest.raises(ValueError, match=r"pageSize must be a positive integer\."):
+        SyncPaginator(_pages, page_size=0)
+    with pytest.raises(ValueError, match=r"limit must be a non-negative integer\."):
+        SyncPaginator(_pages, limit=-1)
+
+
+async def test_async_paginator_methods() -> None:
+    async def fetch(page: int, size: int) -> Page[int]:
+        return _pages(page, size)
+
+    paginator = AsyncPaginator(fetch, page_size=2)
+    assert (await paginator.first_page()).data == [1, 2]
+    pages: list[list[int]] = []
+    async for page in paginator.pages():
+        pages.append(list(page.data))
+    assert pages == [[1, 2], [3]]
+    assert await paginator.to_list() == [1, 2, 3]
+    assert await AsyncPaginator(fetch, page_size=2).to_list(limit=2) == [1, 2]
+    collected = [item async for item in AsyncPaginator(fetch, page_size=2, limit=1)]
+    assert collected == [1]
+
+
+async def test_async_paginator_page_guard() -> None:
+    async def endless(page: int, size: int) -> Page[int]:
+        return Page[int].model_validate({"data": [page], "hasMore": True})
+
+    paginator = AsyncPaginator(endless, page_size=1)
+    with pytest.raises(ValueError, match=r"Pagination exceeded 10000 pages\."):
+        await paginator.to_list()
+
+
+def test_sync_comments_iterate_and_list_all() -> None:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        if request.url.path.endswith("/comments"):
+            return httpx2.Response(
+                200, json=[{"id": 1, "content": "a"}, {"id": 2, "content": "b"}]
+            )
+        return httpx2.Response(404, json={})
+
+    with PlakyClient(
+        api_key="plk_x", max_retries=0, transport=httpx2.MockTransport(handler)
+    ) as client:
+        collected = [c.id for c in client.comments.iterate(space_id=1, board_id=7, item_id=3)]
+        assert collected == [1, 2]
+        limited = client.comments.list_all(space_id=1, board_id=7, item_id=3, limit=1)
+        assert [c.id for c in limited] == [1]
+
+
+async def test_async_comments_iterate_and_list_all() -> None:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        if request.url.path.endswith("/comments"):
+            return httpx2.Response(200, json=[{"id": 1, "content": "a"}])
+        return httpx2.Response(404, json={})
+
+    async with AsyncPlakyClient(
+        api_key="plk_x", max_retries=0, transport=httpx2.MockTransport(handler)
+    ) as client:
+        collected = [
+            c.id async for c in client.comments.iterate(space_id=1, board_id=7, item_id=3)
+        ]
+        assert collected == [1]
+        assert len(await client.comments.list_all(space_id=1, board_id=7, item_id=3)) == 1
+
+
+def test_sync_chunk_reader_edges() -> None:
+    pages = [
+        {"data": [1, 2], "hasMore": True},
+        {"data": [3], "hasMore": False},
+    ]
+    calls: list[int] = []
+
+    def fetch(page: int, size: int) -> dict[str, Any]:
+        calls.append(page)
+        return pages[page - 1]
+
+    first = sync_read_paged_chunk(fetch, max_items=1)
+    assert first.next_cursor == PageCursor(page=1, index=1)
+    rest = sync_read_paged_chunk(fetch, cursor=first.next_cursor)
+    assert rest.complete and rest.data == (2, 3)
+
+    from plaky115 import PlakyOutputLimitError
+
+    with pytest.raises(PlakyOutputLimitError):
+        sync_read_paged_chunk(fetch, max_items=0)
+    with pytest.raises(PlakyOutputLimitError):
+        sync_read_paged_chunk(
+            lambda p, s: {"data": [{"big": "x" * 99}], "hasMore": False}, max_bytes=5
+        )
+
+
+def test_sync_chunks_and_export_chunks() -> None:
+    with paged_workspace_client() as client:
+        chunk = read_item_chunk(client, space=1, board=7, max_items=2)
+        assert chunk.truncated and chunk.next_cursor is not None
+        rest = read_item_chunk(client, space=1, board=7, cursor=chunk.next_cursor)
+        assert rest.complete
+
+        chunks = list(iterate_item_chunks(client, space=1, board=7, max_items=2))
+        assert [c.returned for c in chunks] == [2, 1]
+
+        export_chunk = read_item_export_chunk(client, space=1, board=7, format="jsonl")
+        assert export_chunk.complete and export_chunk.body.endswith("\n")
+        assert json.loads(export_chunk.body.splitlines()[0])["id"] == 1
+
+        csv_chunks = list(
+            iterate_item_export_chunks(client, space=1, board=7, format="csv", max_items=2)
+        )
+        assert csv_chunks[0].body.splitlines()[0] == "id,title,Status"
+        # Header appears exactly once, in chunk 0.
+        assert all("id,title" not in c.body.splitlines()[0] for c in csv_chunks[1:])

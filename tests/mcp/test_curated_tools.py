@@ -6,16 +6,14 @@ import httpx2
 import pytest
 from mcp.client import Client
 
-from plaky115.async_client import AsyncPlakyClient
+from plaky115 import AsyncPlakyClient, PlakyRateLimitError, UploadValidationError
 from plaky115.errors import (
     PlakyAmbiguousMatchError,
     PlakyConnectionError,
     PlakyDecodeError,
     PlakyOutputLimitError,
     PlakyPartialMutationError,
-    PlakyRateLimitError,
     PlakyTimeoutError,
-    UploadValidationError,
 )
 from plaky115_mcp.config import ServerSettings
 from plaky115_mcp.errors import error_envelope, internal_error
@@ -563,3 +561,62 @@ def test_error_envelope_category_table() -> None:
     internal = internal_error(RuntimeError("secret plk_boom"))
     assert "plk_boom" not in internal.error.message
     assert "correlation" in internal.error.message
+
+
+def echo_handler(request: httpx2.Request) -> httpx2.Response:
+    return httpx2.Response(200, json={"echo": request.headers.get("x-extra", "")})
+
+
+def crash_handler(request: httpx2.Request) -> httpx2.Response:
+    raise RuntimeError("wire exploded")
+
+
+async def test_curated_tools_internal_error_paths() -> None:
+    sdk = AsyncPlakyClient(
+        api_key="plk_x", max_retries=0, transport=httpx2.MockTransport(crash_handler)
+    )
+    server = build_server(ServerSettings(api_key="plk_x"), sdk)
+    async with Client(server) as client:
+        calls: list[tuple[str, dict[str, Any]]] = [
+            ("plaky_workspace_context", {}),
+            ("plaky_find", {"kind": "space", "query": "x"}),
+            (
+                "plaky_execute_read_workflow",
+                {"workflow": "workspace.map", "args": {}},
+            ),
+        ]
+        for name, args in calls:
+            result = await client.call_tool(name, args)
+            assert result.is_error, name
+            assert result.structured_content["error"]["name"] == "InternalError", name
+            assert "correlation" in result.structured_content["error"]["message"]
+
+
+async def test_execute_read_workflow_unknown_id() -> None:
+    sdk = AsyncPlakyClient(
+        api_key="plk_x", max_retries=0, transport=httpx2.MockTransport(echo_handler)
+    )
+    server = build_server(ServerSettings(api_key="plk_x"), sdk)
+    async with Client(server) as client:
+        result = await client.call_tool(
+            "plaky_execute_read_workflow", {"workflow": "nope.nothing", "args": {}}
+        )
+        assert result.is_error
+        assert result.structured_content["error"]["category"] == "usage"
+
+
+async def test_find_scope_requirements() -> None:
+    sdk = AsyncPlakyClient(
+        api_key="plk_x",
+        transport=httpx2.MockTransport(lambda _: httpx2.Response(200, json={})),
+    )
+    server = build_server(ServerSettings(api_key="plk_x"), sdk)
+    async with Client(server) as client:
+        for kind, args in [
+            ("item", {"spaceId": "1"}),
+            ("itemGroup", {}),
+            ("itemFile", {"spaceId": "1", "boardId": "7"}),
+        ]:
+            result = await client.call_tool("plaky_find", {"kind": kind, "query": "x", **args})
+            assert result.is_error
+            assert result.structured_content["error"]["category"] == "usage", kind

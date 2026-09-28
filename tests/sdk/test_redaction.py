@@ -80,3 +80,8 @@ def test_key_bearing_transport_exception_never_leaks() -> None:
     assert "plk_live_secret" not in str(info.value)
     summary = mutation_error_summary(info.value)
     assert "plk_live_secret" not in summary.message
+
+
+def test_bound_text_exact_limit() -> None:
+    assert bound_text("abc", 3) == "abc"
+    assert bound_text("abcd", 3) == "ab…"

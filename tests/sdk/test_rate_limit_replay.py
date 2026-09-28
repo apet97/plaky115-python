@@ -8,25 +8,14 @@ import pytest
 import plaky115.errors as errors
 import plaky115.runtime.async_transport as async_transport_module
 import plaky115.runtime.transport as sync_transport_module
+from fakes import make_options, mock_client
 from plaky115 import AsyncPlakyClient, PlakyClient, RequestPacer
-from plaky115.http import RequestOptions, RequestSpec, async_request, request
+from plaky115.http import RequestSpec, async_request, request
 from plaky115.runtime.retry_policy import should_retry_response
 
 pytestmark = pytest.mark.anyio
 
-SERVER = "https://api.example.test"
 WRITES = ["POST", "PUT", "PATCH", "DELETE"]
-
-
-def make_options(**overrides: Any) -> RequestOptions:
-    defaults: dict[str, Any] = {
-        "api_key": "plk_test_key",
-        "server_url": SERVER,
-        "timeout": 5.0,
-        "max_retries": 2,
-    }
-    defaults.update(overrides)
-    return RequestOptions(**defaults)
 
 
 def _no_delay(retry_after: str | None, attempt: int) -> float:
@@ -69,11 +58,13 @@ def test_policy_replays_429_for_every_method_and_5xx_for_get_only() -> None:
 async def test_async_write_replays_429_with_same_body_and_idempotency_key(method: str) -> None:
     recorder = Recorder(429, 201)
     dispatched: list[int] = []
-    async with httpx2.AsyncClient(transport=httpx2.MockTransport(recorder)) as client:
+    async with mock_client(recorder) as client:
         data = await async_request(
             client,
             RequestSpec(method=method, path="/items", body={"title": "T"}),
-            make_options(idempotency_key="idmp_1", on_dispatch=lambda: dispatched.append(1)),
+            make_options(
+                max_retries=2, idempotency_key="idmp_1", on_dispatch=lambda: dispatched.append(1)
+            ),
         )
     assert data == {"id": 1}
     assert len(recorder.requests) == 2
@@ -86,17 +77,21 @@ async def test_async_write_replays_429_with_same_body_and_idempotency_key(method
 def test_sync_write_replays_429(method: str) -> None:
     recorder = Recorder(429, 429, 201)
     with httpx2.Client(transport=httpx2.MockTransport(recorder)) as client:
-        data = request(client, RequestSpec(method=method, path="/items", body={}), make_options())
+        data = request(
+            client, RequestSpec(method=method, path="/items", body={}), make_options(max_retries=2)
+        )
     assert data == {"id": 1}
     assert len(recorder.requests) == 3
 
 
 async def test_write_429_replay_is_bounded_and_surfaces_rate_limit_error() -> None:
     recorder = Recorder(429)
-    async with httpx2.AsyncClient(transport=httpx2.MockTransport(recorder)) as client:
+    async with mock_client(recorder) as client:
         with pytest.raises(errors.PlakyRateLimitError) as info:
             await async_request(
-                client, RequestSpec(method="POST", path="/items", body={}), make_options()
+                client,
+                RequestSpec(method="POST", path="/items", body={}),
+                make_options(max_retries=2),
             )
     assert len(recorder.requests) == 3  # max_retries=2
     assert info.value.retry_after_ms == 60_000
@@ -104,7 +99,7 @@ async def test_write_429_replay_is_bounded_and_surfaces_rate_limit_error() -> No
 
 async def test_write_without_retry_budget_makes_one_attempt_on_429() -> None:
     recorder = Recorder(429)
-    async with httpx2.AsyncClient(transport=httpx2.MockTransport(recorder)) as client:
+    async with mock_client(recorder) as client:
         with pytest.raises(errors.PlakyRateLimitError):
             await async_request(
                 client,
@@ -122,7 +117,9 @@ def test_sync_write_after_5xx_is_never_retried(method: str) -> None:
         httpx2.Client(transport=httpx2.MockTransport(recorder)) as client,
         pytest.raises(errors.PlakyServerError),
     ):
-        request(client, RequestSpec(method=method, path="/items", body={}), make_options())
+        request(
+            client, RequestSpec(method=method, path="/items", body={}), make_options(max_retries=2)
+        )
     assert len(recorder.requests) == 1
 
 
@@ -138,7 +135,9 @@ def test_sync_write_after_connection_failure_is_never_retried() -> None:
         httpx2.Client(transport=httpx2.MockTransport(handler)) as client,
         pytest.raises(errors.PlakyConnectionError),
     ):
-        request(client, RequestSpec(method="POST", path="/items", body={}), make_options())
+        request(
+            client, RequestSpec(method="POST", path="/items", body={}), make_options(max_retries=2)
+        )
     assert calls == 1
 
 

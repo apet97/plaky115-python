@@ -2,6 +2,7 @@
 
 import pytest
 
+from plaky115 import PlakyClient
 from plaky115.config import (
     DEFAULT_SERVER_URL,
     normalize_server_url,
@@ -76,3 +77,14 @@ def test_response_limit_validation() -> None:
     for bad in (0, -5, 64 * 1024 * 1024 + 1):
         with pytest.raises(ValueError, match="between 1 and 67108864"):
             validate_response_limit(bad)
+
+
+def test_client_validation_errors() -> None:
+    from plaky115 import AsyncPlakyClient
+
+    with pytest.raises(ValueError, match="apiKey is required"):
+        PlakyClient(api_key="  ")
+    with pytest.raises(ValueError, match="apiKey is required"):
+        AsyncPlakyClient(api_key="")
+    with pytest.raises(ValueError, match="must not include credentials"):
+        PlakyClient(api_key="plk_x", server_url="https://user:pw@x.example")
