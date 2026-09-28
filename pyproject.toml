@@ -24,7 +24,7 @@ classifiers = [
   "Typing :: Typed",
 ]
 dependencies = [
-  "httpx2>=2.5,<3",
+  "httpx2>=2.12,<3",
   "pydantic>=2.12,<3",
   "typing-extensions>=4.13",
 ]

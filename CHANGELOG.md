@@ -30,6 +30,8 @@ Findings from a live monday.com → Plaky migration (measured 2026-09-21/23):
   body-phase timeout tests have wide margins, and the eval scorer tests run
   in-process (7.4 s to 2.7 s for that file). Live read certification covers 18
   operations, including `getSubscriptions`.
+- Requires `httpx2>=2.12`; the lock moves to 2.13.1, clearing
+  PYSEC-2026-3846, -3848, and -3849 in 2.10.0.
 - `docs/sdk.md` records the server behaviour behind these changes: list
   defaults, clearing rules per field type, the Person write shape, date
   offsets, ambiguous labels, and rewritten file names.
