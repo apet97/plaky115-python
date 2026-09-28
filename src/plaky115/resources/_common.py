@@ -12,8 +12,9 @@ from typing import Any, Protocol, TypeVar
 
 from pydantic import BaseModel
 
-from plaky115.http import RequestSpec
+from plaky115.http import RequestOptions, RequestSpec
 from plaky115.pagination import Page, assert_array_result, assert_paged_result
+from plaky115.runtime.request_builders import merge_headers_into
 
 ModelT = TypeVar("ModelT", bound=BaseModel)
 
@@ -28,6 +29,38 @@ class RequestOverrides:
     max_retries: int | None = None
     max_response_bytes: int | None = None
     on_dispatch: Callable[[], None] | None = None
+
+
+def combine_headers(base: Mapping[str, str] | None, extra: Mapping[str, str]) -> dict[str, str]:
+    """Client headers with per-call headers on top: case-insensitive, "" deletes."""
+    combined = {key.lower(): value for key, value in (base or {}).items()}
+    merge_headers_into(combined, extra)
+    return combined
+
+
+def apply_overrides(
+    defaults: RequestOptions,
+    overrides: RequestOverrides | None,
+    headers: Mapping[str, str] | Callable[[], Any] | None,
+) -> RequestOptions:
+    """One call's options: the client's defaults with this call's overrides applied."""
+    if overrides is None:
+        return replace(defaults, headers=headers)
+    return replace(
+        defaults,
+        headers=headers,
+        timeout=defaults.timeout if overrides.timeout is None else overrides.timeout,
+        max_retries=(
+            defaults.max_retries if overrides.max_retries is None else overrides.max_retries
+        ),
+        max_response_bytes=(
+            defaults.max_response_bytes
+            if overrides.max_response_bytes is None
+            else overrides.max_response_bytes
+        ),
+        idempotency_key=overrides.idempotency_key,
+        on_dispatch=overrides.on_dispatch,
+    )
 
 
 class Requester(Protocol):

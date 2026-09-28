@@ -22,8 +22,9 @@ from plaky115.http import (
     RequestOptions,
     RequestSpec,
     async_request_with_response,
+    async_resolve_headers,
 )
-from plaky115.resources._common import RequestOverrides
+from plaky115.resources._common import RequestOverrides, apply_overrides, combine_headers
 from plaky115.resources.boards import AsyncBoardsResource
 from plaky115.resources.comments import AsyncItemCommentsResource
 from plaky115.resources.item_files import AsyncItemFilesResource
@@ -101,59 +102,31 @@ class AsyncPlakyClient:
         return self._server_url
 
     def _options(self, overrides: RequestOverrides | None) -> RequestOptions:
-        headers = self._headers
-        if overrides is not None and overrides.headers is not None:
-            base = self._headers
+        base = self._headers
+        extra = overrides.headers if overrides is not None else None
+        if extra is None:
+            headers = base
+        elif callable(base):
 
-            if callable(base):
+            async def merged() -> Mapping[str, str]:
+                return combine_headers(await async_resolve_headers(base), extra)
 
-                async def merged() -> Mapping[str, str]:
-                    from plaky115.http import async_resolve_headers
-
-                    resolved = await async_resolve_headers(base) or {}
-                    assert overrides is not None and overrides.headers is not None
-                    combined: dict[str, str] = {k.lower(): v for k, v in resolved.items()}
-                    from plaky115.runtime.request_builders import merge_headers_into
-
-                    merge_headers_into(combined, overrides.headers)
-                    return combined
-
-                headers = merged
-            elif base:
-                combined = {k.lower(): v for k, v in base.items()}
-                from plaky115.runtime.request_builders import merge_headers_into
-
-                merge_headers_into(combined, overrides.headers)
-                headers = combined
-            else:
-                headers = overrides.headers
-        return RequestOptions(
+            headers = merged
+        else:
+            headers = combine_headers(base, extra)
+        defaults = RequestOptions(
             api_key=self._api_key,
             server_url=self._server_url,
-            timeout=(
-                overrides.timeout
-                if overrides is not None and overrides.timeout is not None
-                else self._timeout
-            ),
-            max_retries=(
-                overrides.max_retries
-                if overrides is not None and overrides.max_retries is not None
-                else self._max_retries
-            ),
-            max_response_bytes=(
-                overrides.max_response_bytes
-                if overrides is not None and overrides.max_response_bytes is not None
-                else self._max_response_bytes
-            ),
-            headers=headers,
+            timeout=self._timeout,
+            max_retries=self._max_retries,
+            max_response_bytes=self._max_response_bytes,
             user_agent=self._user_agent,
-            idempotency_key=overrides.idempotency_key if overrides is not None else None,
             request_hook=self._request_hook,
             response_hook=self._response_hook,
-            on_dispatch=overrides.on_dispatch if overrides is not None else None,
             rate_limit_tracker=self.rate_limit,
             pacer=self._pacer,
         )
+        return apply_overrides(defaults, overrides, headers)
 
     async def execute(self, spec: RequestSpec, options: RequestOverrides | None) -> Any:
         envelope = await async_request_with_response(self._http, spec, self._options(options))
