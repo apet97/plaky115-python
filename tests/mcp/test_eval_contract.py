@@ -2,16 +2,42 @@
 
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
 import json
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 
 import pytest
 
 REPO = Path(__file__).resolve().parents[2]
+
+
+def _load_scorer() -> ModuleType:
+    spec = importlib.util.spec_from_file_location(
+        "score_mcp_predictions", REPO / "scripts/score_mcp_predictions.py"
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+# Loaded once: importing the MCP stack per case in a subprocess dominated this
+# file's runtime. The corpus test below still runs the real CLI entrypoint.
+SCORER = _load_scorer()
+
+
+@dataclass(frozen=True)
+class ScorerRun:
+    returncode: int
+    stdout: str
+    stderr: str
 
 
 def _case(identifier: str, **overrides: object) -> dict[str, object]:
@@ -33,27 +59,19 @@ def _run_scorer(
     tmp_path: Path,
     cases: list[dict[str, object]],
     predictions: list[dict[str, object]],
-) -> subprocess.CompletedProcess[str]:
+) -> ScorerRun:
     cases_path = tmp_path / "cases.json"
     predictions_path = tmp_path / "predictions.jsonl"
     cases_path.write_text(json.dumps(cases), encoding="utf-8")
     predictions_path.write_text(
         "\n".join(json.dumps(prediction) for prediction in predictions), encoding="utf-8"
     )
-    return subprocess.run(
-        [
-            sys.executable,
-            "scripts/score_mcp_predictions.py",
-            "--cases",
-            str(cases_path),
-            "--predictions",
-            str(predictions_path),
-        ],
-        cwd=REPO,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    stdout, stderr = io.StringIO(), io.StringIO()
+    with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+        returncode = SCORER.main(
+            ["--cases", str(cases_path), "--predictions", str(predictions_path)]
+        )
+    return ScorerRun(returncode, stdout.getvalue(), stderr.getvalue())
 
 
 def test_eval_corpus_is_valid_and_fixed_predictions_score_perfectly(tmp_path: Path) -> None:
@@ -175,12 +193,7 @@ def test_eval_reports_missing_and_extra_prediction_ids(tmp_path: Path) -> None:
 
 
 def test_eval_rejects_malformed_tool_schema(monkeypatch: pytest.MonkeyPatch) -> None:
-    spec = importlib.util.spec_from_file_location(
-        "score_mcp_predictions", REPO / "scripts/score_mcp_predictions.py"
-    )
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    module = SCORER
 
     def malformed_schemas(_case: dict[str, Any]) -> dict[str, dict[str, Any]]:
         return {"plaky_workspace_context": {"type": "not-a-json-schema-type"}}

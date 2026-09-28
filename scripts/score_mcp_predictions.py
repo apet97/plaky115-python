@@ -232,11 +232,11 @@ def score(cases: list[dict[str, Any]], predictions: dict[str, dict[str, Any]]) -
     }
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--cases", type=Path, default=REPO / "evals/mcp-cases.json")
     parser.add_argument("--predictions", type=Path, required=True)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     try:
         result = score(load_cases(args.cases), load_predictions(args.predictions))
     except (OSError, ValueError, json.JSONDecodeError) as error:
