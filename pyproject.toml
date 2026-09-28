@@ -96,6 +96,11 @@ ignore = [
   "SIM108",  # ternary is not always clearer
 ]
 
+[tool.ruff.lint.isort]
+# Explicit: scripts/generate.py formats in a temp dir where ruff cannot see a
+# module that has not been written yet; fakes is the tests/sdk helper module.
+known-first-party = ["plaky115", "plaky115_mcp", "fakes"]
+
 [tool.ruff.lint.per-file-ignores]
 "src/plaky115/models/generated.py" = ["E501", "I001"]
 "src/plaky115_mcp/tools/raw/generated_*.py" = ["E501"]
