@@ -39,6 +39,9 @@ from plaky115_mcp.tools.raw.generated_get_item_file_download import (
 )
 from plaky115_mcp.tools.raw.generated_get_item_group import build_tool as _generated_get_item_group
 from plaky115_mcp.tools.raw.generated_get_space import build_tool as _generated_get_space
+from plaky115_mcp.tools.raw.generated_get_subscriptions import (
+    build_tool as _generated_get_subscriptions,
+)
 from plaky115_mcp.tools.raw.generated_get_team import build_tool as _generated_get_team
 from plaky115_mcp.tools.raw.generated_list_boards import build_tool as _generated_list_boards
 from plaky115_mcp.tools.raw.generated_list_item_comments import (
@@ -55,6 +58,9 @@ from plaky115_mcp.tools.raw.generated_list_spaces import build_tool as _generate
 from plaky115_mcp.tools.raw.generated_list_subitems import build_tool as _generated_list_subitems
 from plaky115_mcp.tools.raw.generated_list_teams import build_tool as _generated_list_teams
 from plaky115_mcp.tools.raw.generated_list_users import build_tool as _generated_list_users
+from plaky115_mcp.tools.raw.generated_override_subscriptions import (
+    build_tool as _generated_override_subscriptions,
+)
 from plaky115_mcp.tools.raw.generated_replace_comment_reactions import (
     build_tool as _generated_replace_comment_reactions,
 )
@@ -95,6 +101,7 @@ def build_raw_tools(client: AsyncPlakyClient) -> list[ToolSpec]:
         _generated_get_item_file_download(client),
         _generated_get_item_group(client),
         _generated_get_space(client),
+        _generated_get_subscriptions(client),
         _generated_get_team(client),
         _generated_list_boards(client),
         _generated_list_item_comments(client),
@@ -105,6 +112,7 @@ def build_raw_tools(client: AsyncPlakyClient) -> list[ToolSpec]:
         _generated_list_subitems(client),
         _generated_list_teams(client),
         _generated_list_users(client),
+        _generated_override_subscriptions(client),
         _generated_replace_comment_reactions(client),
         _generated_update_item_comment(client),
         _generated_update_item_field(client),

@@ -74,7 +74,7 @@ async def test_stdio_list_and_call(fake_plaky_api: str, mode: str) -> None:
     params = _stdio_params(fake_plaky_api, "--mode", "generated")
     async with Client(stdio_client(params), mode=mode) as client:  # type: ignore[arg-type]
         tools = (await client.list_tools()).tools
-        assert len(tools) == 17  # read scope default over generated mode
+        assert len(tools) == 18  # read scope default over generated mode
         result = await client.call_tool("plaky_list_spaces", {"pageSize": 5})
         assert result.is_error is False
         assert result.structured_content == {
@@ -134,7 +134,7 @@ async def _http_server(base_url: str) -> AsyncGenerator[str]:
 async def test_streamable_http_list_and_call(fake_plaky_api: str, mode: str) -> None:
     async with _http_server(fake_plaky_api) as base, Client(f"{base}/mcp", mode=mode) as client:
         tools = (await client.list_tools()).tools
-        assert len(tools) == 17
+        assert len(tools) == 18
         result = await client.call_tool("plaky_list_spaces", {})
         assert result.is_error is False
         missing = await client.call_tool("plaky_get_space", {"spaceId": "9"})

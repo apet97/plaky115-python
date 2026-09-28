@@ -35,7 +35,6 @@ from plaky115.runtime.async_transport import (
 from plaky115.runtime.request_builders import assert_trusted_request_url, build_url
 from plaky115.runtime.responses import get_request_id
 from plaky115.runtime.retry_policy import (
-    can_retry,
     can_retry_error,
     parse_retry_after,
     retry_delay_ms,
@@ -70,11 +69,15 @@ def sync_request_with_response(
 ) -> ApiResponse:
     method = spec.method.upper()
     operation_id = spec.operation_id or f"{method} {spec.path}"
-    max_retries = options.max_retries if can_retry(method) else 0
+    max_retries = options.max_retries
     timeout = options.timeout if options.timeout and options.timeout > 0 else None
 
     attempt = 0
     while True:
+        if options.pacer is not None:
+            wait = options.pacer.reserve()
+            if wait > 0:
+                time.sleep(wait)
         retry_after_header: str | None = None
         phase = "preflight"
         response: httpx2.Response | None = None

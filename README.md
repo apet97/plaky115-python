@@ -27,15 +27,18 @@ official `mcp` v2 SDK behind the extra).
 
 ## Highlights
 
-- **All 32 public operations** across nine resources — spaces, boards,
-  items, comments, reactions, users, teams, item groups, item files —
+- **All 34 public operations** across ten resources — spaces, boards,
+  items, comments, reactions, subscriptions, users, teams, item groups,
+  item files —
   each pinned by contract descriptors and cross-surface parity tests.
 - **Async-first with a real sync client.** `AsyncPlakyClient` and
   `PlakyClient` share pure logic only; the sync client never touches an
   event loop.
-- **Safe under failure.** Only GET requests retry (equal-jitter backoff,
-  bounded `Retry-After`); writes make exactly one network attempt — even
-  with an idempotency key. Mutation receipts record `attempted` /
+- **Safe under failure.** GET requests retry (equal-jitter backoff,
+  bounded `Retry-After`); a write is replayed only after a 429, which Plaky
+  never commits, and otherwise makes exactly one network attempt — even
+  with an idempotency key. An opt-in `RequestPacer` keeps a client under
+  Plaky's 200-per-minute limit. Mutation receipts record `attempted` /
   `mayHaveCommitted` conservatively.
 - **Strict wire contracts.** Paged roots must be `{"data": [...],
   "hasMore": bool}`; unsafe int64 JSON integers survive as exact decimal
@@ -83,7 +86,7 @@ plaky115-mcp --transport streamable-http --port 8000 # deployment
 - **Safe by default:** `curated` mode + `read` scope. Write and
   destructive tools mount only with explicit flags; mutation workflows
   default to **dry-run**.
-- **Two tool surfaces:** 32 generated raw tools (one per operation) and 8
+- **Two tool surfaces:** 34 generated raw tools (one per operation) and 8
   curated tools with 11 workflow IDs (`workspace.map`, `items.search`,
   `comments.thread`, `export.items`, `items.create`, `items.updateFields`,
   `comments.add`, `itemGroups.create`, `itemGroups.update`,
@@ -106,7 +109,7 @@ Deployment notes: [`docs/mcp.md`](docs/mcp.md) and
 | --- | --- |
 | [docs/sdk.md](docs/sdk.md) | Clients, options, resources, errors, pagination |
 | [docs/mcp.md](docs/mcp.md) | Modes, scopes, result contracts, deployment |
-| [docs/compatibility-inventory.md](docs/compatibility-inventory.md) | All 32 operations mapped to SDK + MCP names |
+| [docs/compatibility-inventory.md](docs/compatibility-inventory.md) | All 34 operations mapped to SDK + MCP names |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Architecture, generated boundaries, contract and evaluation workflow |
 | [SECURITY.md](SECURITY.md) | Credential and transport policy |
 | [docs/live-certification.md](docs/live-certification.md) | Read/write live gates |

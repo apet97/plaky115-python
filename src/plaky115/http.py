@@ -21,7 +21,7 @@ from plaky115.config import (
     DEFAULT_TIMEOUT_SECONDS,
 )
 from plaky115.errors import PlakyTimeoutError
-from plaky115.runtime.rate_limit import RateLimitTracker
+from plaky115.runtime.rate_limit import RateLimitTracker, RequestPacer
 from plaky115.runtime.request_builders import merge_headers_into
 from plaky115.user_agent import build_user_agent
 
@@ -88,6 +88,7 @@ class RequestOptions:
     response_hook: Callable[..., Any] | None = None
     on_dispatch: Callable[[], None] | None = field(default=None, compare=False)
     rate_limit_tracker: RateLimitTracker | None = field(default=None, compare=False)
+    pacer: RequestPacer | None = field(default=None, compare=False)
 
 
 @dataclass(frozen=True)

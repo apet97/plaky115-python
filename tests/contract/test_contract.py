@@ -1,20 +1,25 @@
 """Contract pipeline gates: inventory, determinism, and descriptor invariants."""
 
+import importlib.util
 import json
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
+
+import pytest
+import yaml
 
 REPO = Path(__file__).resolve().parent.parent.parent
 OPERATIONS = json.loads((REPO / "contract/generated/operations.json").read_text(encoding="utf-8"))
 DESCRIPTORS = OPERATIONS["operations"]
 
 
-def test_exactly_32_unique_operations() -> None:
-    assert len(DESCRIPTORS) == 32
-    assert len({d["operationId"] for d in DESCRIPTORS}) == 32
-    assert len({(d["method"], d["path"]) for d in DESCRIPTORS}) == 32
-    assert len({d["mcpName"] for d in DESCRIPTORS}) == 32
+def test_exactly_34_unique_operations() -> None:
+    assert len(DESCRIPTORS) == 34
+    assert len({d["operationId"] for d in DESCRIPTORS}) == 34
+    assert len({(d["method"], d["path"]) for d in DESCRIPTORS}) == 34
+    assert len({d["mcpName"] for d in DESCRIPTORS}) == 34
 
 
 def test_descriptors_sorted_and_complete() -> None:
@@ -44,6 +49,7 @@ def test_bare_array_and_void_inventory() -> None:
         "deleteItemGroup",
         "archiveItemGroup",
         "deleteItemFile",
+        "overrideSubscriptions",
     }
 
 
@@ -85,6 +91,43 @@ def test_docs_index_covers_operations_workflows_guides() -> None:
     kinds: dict[str, int] = {}
     for entry in index["entries"]:
         kinds[entry["kind"]] = kinds.get(entry["kind"], 0) + 1
-    assert kinds["operation"] == 32
+    assert kinds["operation"] == 34
     assert kinds["workflow"] == 11
     assert kinds["guide"] >= 3
+
+
+def _contract_script() -> Any:
+    spec = importlib.util.spec_from_file_location("contract_script", REPO / "scripts/contract.py")
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_fetch_extracts_the_spec_embedded_in_the_docs_page() -> None:
+    contract = _contract_script()
+    page = (
+        "<!doctype html><script>\n  const openApiSpec = "
+        '{"openapi": "3.1.0", "info": {"title": "a } b"}, "paths": {}};\n'
+        "  Scalar.createApiReference(openApiSpec);</script>"
+    )
+    spec = contract.extract_embedded_spec(page)
+    assert spec == {"openapi": "3.1.0", "info": {"title": "a } b"}, "paths": {}}
+
+    with pytest.raises(ValueError, match="no embedded OpenAPI"):
+        contract.extract_embedded_spec("<!doctype html><p>nothing here</p>")
+    with pytest.raises(ValueError, match="not an OpenAPI object"):
+        contract.extract_embedded_spec('const openApiSpec = {"swagger": "2.0"};')
+
+
+def test_upstream_mirror_round_trips_through_the_fetch_dumper() -> None:
+    contract = _contract_script()
+    spec = contract.load_yaml(REPO / "contract/upstream.openapi.yaml")
+    dumped = yaml.dump(
+        spec,
+        Dumper=contract._UpstreamYamlDumper,
+        sort_keys=True,
+        explicit_start=True,
+        allow_unicode=True,
+    )
+    assert yaml.safe_load(dumped) == spec

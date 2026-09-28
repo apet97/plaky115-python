@@ -127,18 +127,19 @@ def test_rate_limit_reset_header_stored_verbatim() -> None:
     assert tracker.last.reset_at is None
 
 
-def test_item_group_plans_accept_missing_color() -> None:
+def test_item_group_plans_require_color() -> None:
     from plaky115.workflows.mutation_plans import (
         normalize_item_group_create_plan,
         normalize_item_group_update_plan,
     )
 
-    created = normalize_item_group_create_plan(space_id=1, board_id=7, body={"title": "t"})
-    assert "color" not in dict(created.body)
-    updated = normalize_item_group_update_plan(
-        space_id=1, board_id=7, item_group_id=5, body={"title": "t", "ranking": "r"}
-    )
-    assert "color" not in dict(updated.body)
+    # Plaky answers 500 to a group written without a color.
+    with pytest.raises(TypeError, match=r"body\.color must be a six-digit"):
+        normalize_item_group_create_plan(space_id=1, board_id=7, body={"title": "t"})
+    with pytest.raises(TypeError, match=r"body\.color must be a six-digit"):
+        normalize_item_group_update_plan(
+            space_id=1, board_id=7, item_group_id=5, body={"title": "t", "ranking": "r"}
+        )
     with pytest.raises(TypeError, match=r"body\.color must be a six-digit"):
         normalize_item_group_create_plan(
             space_id=1, board_id=7, body={"title": "t", "color": "red"}

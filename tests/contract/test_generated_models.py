@@ -36,7 +36,7 @@ def test_aliases_round_trip() -> None:
 def test_all_request_models_are_strict() -> None:
     text = (REPO / "src/plaky115/models/generated.py").read_text(encoding="utf-8")
     request_classes = re.findall(r"class (\w+Request)\(BaseModel\):", text)
-    assert len(request_classes) == 7
+    assert len(request_classes) == 8
     assert text.count('extra="forbid"') == len(request_classes)
 
 

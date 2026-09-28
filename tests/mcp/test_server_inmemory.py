@@ -88,20 +88,20 @@ async def test_all_modern_cacheable_results_use_private_five_minute_hints() -> N
         assert result.cache_scope == "private"
 
 
-async def test_generated_mode_mounts_exactly_32_raw_tools() -> None:
+async def test_generated_mode_mounts_exactly_34_raw_tools() -> None:
     server = build_server(settings(mode="generated", scopes=ALL_SCOPES), sdk_client())
     async with Client(server) as client:
         tools = (await client.list_tools()).tools
-    assert len(tools) == 32
+    assert len(tools) == 34
     assert all(t.name.startswith("plaky_") for t in tools)
-    assert len({t.name for t in tools}) == 32
+    assert len({t.name for t in tools}) == 34
 
 
 async def test_generated_read_scope_filters_mutations() -> None:
     server = build_server(settings(mode="generated"), sdk_client())
     async with Client(server) as client:
         tools = (await client.list_tools()).tools
-    assert len(tools) == 17  # the seventeen read operations
+    assert len(tools) == 18  # the eighteen read operations
     for tool in tools:
         assert tool.annotations is not None and tool.annotations.read_only_hint
 
@@ -110,7 +110,7 @@ async def test_all_mode_excludes_compat_dispatcher_by_default() -> None:
     server = build_server(settings(mode="all", scopes=ALL_SCOPES), sdk_client())
     async with Client(server) as client:
         names = {t.name for t in (await client.list_tools()).tools}
-    assert len(names) == 39
+    assert len(names) == 41
     assert "plaky_execute_workflow" not in names
 
     compat = build_server(
@@ -119,7 +119,7 @@ async def test_all_mode_excludes_compat_dispatcher_by_default() -> None:
     async with Client(compat) as client:
         names = {t.name for t in (await client.list_tools()).tools}
     assert "plaky_execute_workflow" in names
-    assert len(names) == 40
+    assert len(names) == 42
 
 
 async def test_every_tool_has_title_description_and_hints() -> None:
@@ -386,7 +386,7 @@ async def test_concurrent_calls_do_not_share_mutation_state() -> None:
 
 def test_spec_validation_gate() -> None:
     specs = build_raw_tools(sdk_client())
-    assert len(specs) == 32
+    assert len(specs) == 34
     for spec in specs:
         validate_spec(spec)
     destructive = {s.name for s in specs if "destructive" in s.scopes}
@@ -421,3 +421,32 @@ def test_invalid_spec_rejected() -> None:
                 ),
             )
         )
+
+
+async def test_subscription_raw_tools_read_and_replace_subscribers() -> None:
+    sent: list[Any] = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        assert request.url.path == "/v1/public/spaces/1/boards/7/items/3/subscriptions"
+        if request.method == "GET":
+            return httpx2.Response(
+                200, json={"users": [{"id": 4, "name": "Ana"}], "teams": [{"id": 8}]}
+            )
+        sent.append(json.loads(request.read()))
+        return httpx2.Response(200)
+
+    sdk = AsyncPlakyClient(api_key="plk_x", max_retries=0, transport=httpx2.MockTransport(handler))
+    server = build_server(settings(mode="generated", scopes=ALL_SCOPES), sdk)
+    target = {"spaceId": "1", "boardId": "7", "itemId": "3"}
+    async with Client(server) as client:
+        read = await client.call_tool("plaky_get_item_subscriptions", target)
+        replaced = await client.call_tool(
+            "plaky_replace_item_subscriptions", {**target, "body": {"userIds": [4, 5]}}
+        )
+    assert not read.is_error
+    assert read.structured_content is not None
+    assert read.structured_content["users"][0]["id"] == 4
+    assert read.structured_content["teams"] == [{"id": 8}]
+    assert not replaced.is_error
+    assert replaced.structured_content == {"ok": True}
+    assert sent == [{"userIds": [4, 5]}]

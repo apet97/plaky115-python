@@ -30,9 +30,10 @@ from plaky115.resources.item_groups import ItemGroupsResource
 from plaky115.resources.items import ItemsResource
 from plaky115.resources.reactions import ReactionsResource
 from plaky115.resources.spaces import SpacesResource
+from plaky115.resources.subscriptions import SubscriptionsResource
 from plaky115.resources.teams import TeamsResource
 from plaky115.resources.users import UsersResource
-from plaky115.runtime.rate_limit import RateLimitTracker
+from plaky115.runtime.rate_limit import RateLimitTracker, RequestPacer
 from plaky115.runtime.transport import sync_request_with_response
 from plaky115.user_agent import build_user_agent
 
@@ -55,6 +56,7 @@ class PlakyClient:
         response_hook: Callable[..., Any] | None = None,
         http_client: httpx2.Client | None = None,
         transport: httpx2.BaseTransport | None = None,
+        pacer: RequestPacer | None = None,
     ) -> None:
         if isinstance(api_key, str) and not api_key.strip():
             raise ValueError("PlakyClient: apiKey is required")
@@ -77,12 +79,14 @@ class PlakyClient:
         self._owns_http = http_client is None
         self._http = http_client or httpx2.Client(transport=transport)
         self.rate_limit = RateLimitTracker()
+        self._pacer = pacer
 
         self.spaces = SpacesResource(self)
         self.boards = BoardsResource(self)
         self.items = ItemsResource(self)
         self.comments = ItemCommentsResource(self)
         self.reactions = ReactionsResource(self)
+        self.subscriptions = SubscriptionsResource(self)
         self.users = UsersResource(self)
         self.teams = TeamsResource(self)
         self.item_groups = ItemGroupsResource(self)
@@ -142,6 +146,7 @@ class PlakyClient:
             response_hook=self._response_hook,
             on_dispatch=overrides.on_dispatch if overrides is not None else None,
             rate_limit_tracker=self.rate_limit,
+            pacer=self._pacer,
         )
 
     def execute(self, spec: RequestSpec, options: RequestOverrides | None) -> Any:
@@ -206,6 +211,7 @@ class PlakyClient:
             request_hook=self._request_hook,
             response_hook=self._response_hook,
             http_client=self._http,
+            pacer=self._pacer,
         )
 
     def close(self) -> None:

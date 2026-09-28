@@ -751,6 +751,57 @@ operations:
       kind: pageNumber
       pageParameter: page
       sizeParameter: pageSize
+  GET /v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/subscriptions:
+    operationId: getSubscriptions
+    summary: List item subscribers
+    sdk:
+      resource: subscriptions
+      method: get
+    request:
+      kind: none
+    response:
+      root: object
+      status: 200
+      model: ItemSubscriptionResponse
+    mcp:
+      name: plaky_get_item_subscriptions
+      title: Get item subscribers
+      scopes:
+      - read
+      annotations:
+        readOnlyHint: true
+        destructiveHint: false
+        idempotentHint: true
+        openWorldHint: true
+    confirmation: none
+    compactKind: raw
+    sensitiveOutput: false
+  PUT /v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/subscriptions:
+    operationId: overrideSubscriptions
+    summary: Replace item subscribers
+    sdk:
+      resource: subscriptions
+      method: replace
+    request:
+      kind: json
+      required: true
+      model: ItemSubscriptionRequest
+    response:
+      root: void
+      status: 200
+    mcp:
+      name: plaky_replace_item_subscriptions
+      title: Replace item subscribers
+      scopes:
+      - write
+      annotations:
+        readOnlyHint: false
+        destructiveHint: false
+        idempotentHint: true
+        openWorldHint: true
+    confirmation: none
+    compactKind: raw
+    sensitiveOutput: false
   GET /v1/public/teams:
     operationId: listTeams
     summary: List workspace teams

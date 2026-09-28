@@ -1,8 +1,11 @@
-"""GET-only retry policy with equal jitter and bounded Retry-After.
+"""Retry policy with equal jitter and bounded Retry-After.
 
 Ported from sdk/src/runtime/internal/retry-policy.ts at the pinned source
-(docs/port/spec-transport.md). Writes never retry, with or without an
-idempotency key.
+(docs/port/spec-transport.md), with one deliberate deviation: a 429 is
+replayed for every method. Plaky never commits a request it refuses with
+429 (of 600 burst creates, exactly the 500 answered 201 existed; measured
+2026-09-22), so replaying one cannot duplicate a write. A write that meets
+a 5xx, timeout, or connection failure may have committed and never retries.
 """
 
 from __future__ import annotations
@@ -21,9 +24,9 @@ def can_retry(method: str) -> bool:
 def should_retry_response(method: str, status: int, attempt: int, max_retries: int) -> bool:
     if attempt >= max_retries:
         return False
-    if status != 429 and not (500 <= status <= 599):
-        return False
-    return can_retry(method)
+    if status == 429:
+        return True
+    return 500 <= status <= 599 and can_retry(method)
 
 
 def can_retry_error(method: str, attempt: int, max_retries: int) -> bool:

@@ -27,8 +27,10 @@ repository, not through public issues.
 - Redirects are not followed automatically.
 - Request hooks cannot change the trusted origin.
 - Non-streaming bodies are bounded: 16 MiB default, 64 MiB hard maximum.
-- Only GET requests retry. Writes make exactly one network attempt, even
-  with an explicit idempotency key.
+- GET requests retry on 429, 5xx, timeouts, and connection failures. A
+  write is replayed only after a 429, which Plaky never commits; after any
+  other failure it makes exactly one network attempt, even with an explicit
+  idempotency key.
 
 ## MCP server model
 

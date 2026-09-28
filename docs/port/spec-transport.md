@@ -36,7 +36,10 @@ and `client/client.ts`. This is the parity contract for the Python port.
 
 ## Retry policy
 
-- Only GET retries. Idempotency-Key never enables write retries.
+- Only GET retries, except a 429, which is replayed for every method.
+  Deliberate deviation from the source: Plaky never commits a request it
+  refuses with 429 (measured 2026-09-22). Idempotency-Key never enables
+  any other write retry.
 - Retryable statuses: 429 and 500–599 only.
 - Thrown errors: Abort → never retried; Timeout → retried (GET);
   other → coerced to PlakyConnectionError then retried (GET).
@@ -171,4 +174,4 @@ and `client/client.ts`. This is the parity contract for the Python port.
 - No user-agent suffix validation.
 - No idempotency key validation.
 - No control-char sanitizing in HTTP error messages (only mutations/uploads).
-- No retry of decode/hook failures; no mutation retries ever.
+- No retry of decode/hook failures; no mutation retries except after a 429.

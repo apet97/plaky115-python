@@ -18,6 +18,7 @@ from plaky115.models.generated import (
     ItemFileResponse,
     ItemGroupResponse,
     ItemResponse,
+    ItemSubscriptionResponse,
     ReactionPutResponse,
     ReactionResponse,
     ShortUserResponse,
@@ -40,6 +41,7 @@ Folder = FolderResponse
 ItemGroup = ItemGroupResponse
 ItemFile = ItemFileResponse
 ItemFileDownload = ItemFileDownloadResponse
+ItemSubscriptions = ItemSubscriptionResponse
 User = UserResponse
 ShortUser = ShortUserResponse
 Team = TeamResponse
@@ -57,6 +59,7 @@ __all__ = [
     "ItemFile",
     "ItemFileDownload",
     "ItemGroup",
+    "ItemSubscriptions",
     "Reaction",
     "ReactionDetail",
     "ReactionReplaceResult",

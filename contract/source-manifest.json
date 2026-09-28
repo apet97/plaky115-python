@@ -5,23 +5,25 @@
   "acceptedAt": "2026-08-13",
   "upstreamProvenance": {
     "sourceUrl": "https://docs.plaky.com/",
-    "fetchedAt": "2026-07-26T22:46:49.352Z",
-    "rawSha256": "e03c50ed74fcf994d670ff1eb9167f3fe437e2e83935def5bc1798f73c06984f",
-    "canonicalSha256": "0aa047cec4b45908b428eff54f5e6b16de1b306486a2ac182eda3b8ddb9bb5c2",
-    "operationCount": 32
+    "fetchedAt": "2026-09-28T02:02:32.661541+00:00",
+    "rawSha256": "60ded5a83345dc81cbd10bc9b128a0ec340aa507e6c4a042ceeb23d7ed5b7884",
+    "extractedFromHtml": true,
+    "specSha256": "f6297fc2af09d1d8749aa2875be62f97b59e1df6d469534d5a62d78f5eac16f2",
+    "operationCount": 34,
+    "acceptedAt": "2026-09-28T02:02:50.798974+00:00"
   },
   "files": [
     {
       "sourcePath": "api-1.yaml",
       "sourceSha256": "fe3e5bac33564ecd11e4d4d7c8172904883abd967b56500e946db3df2415c1b7",
       "target": "contract/upstream.openapi.yaml",
-      "translation": "verbatim copy"
+      "translation": "baseline: superseded by the direct fetch recorded in upstreamProvenance"
     },
     {
       "sourcePath": "openapi/plaky115-expected-operations.json",
       "sourceSha256": "8fd966c12d728885d4688b215cba604d78ac4da480614e1a516864ce5b7b2ebc",
       "target": "contract/expected-operations.json",
-      "translation": "verbatim copy"
+      "translation": "baseline: maintained locally since the item-subscription operations"
     },
     {
       "sourcePath": "LICENSE",

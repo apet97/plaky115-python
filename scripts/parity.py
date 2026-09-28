@@ -29,7 +29,7 @@ SOURCE_CHECKOUT = Path(
     os.environ.get("PLAKY115_SOURCE_CHECKOUT", "/Users/15x/Downloads/WORKING/addons-me/plaky115")
 )
 
-EXPECTED_OPERATION_COUNT = 32
+EXPECTED_OPERATION_COUNT = 34
 EXPECTED_SOURCE_COMMIT = "33ae2926aa696f36d9663d44f914d42d9aadc53f"
 
 CURATED_TOOLS = [
@@ -101,7 +101,10 @@ def main() -> int:
     ops = expected["operations"]
     method_paths = {(o["method"], o["path"]) for o in ops}
     op_ids = [o["operationId"] for o in ops]
-    check(len(ops) == EXPECTED_OPERATION_COUNT, f"expected 32 operations, got {len(ops)}")
+    check(
+        len(ops) == EXPECTED_OPERATION_COUNT,
+        f"expected {EXPECTED_OPERATION_COUNT} operations, got {len(ops)}",
+    )
     check(len(method_paths) == len(ops), "duplicate method/path pair in expected operations")
     check(len(set(op_ids)) == len(ops), "duplicate operationId in expected operations")
 
@@ -109,7 +112,10 @@ def main() -> int:
         (REPO / "contract/operation-overrides.yaml").read_text(encoding="utf-8")
     )
     over_ops: dict[str, dict[str, Any]] = overrides["operations"]
-    check(len(over_ops) == EXPECTED_OPERATION_COUNT, f"expected 32 overrides, got {len(over_ops)}")
+    check(
+        len(over_ops) == EXPECTED_OPERATION_COUNT,
+        f"expected {EXPECTED_OPERATION_COUNT} overrides, got {len(over_ops)}",
+    )
 
     over_by_id: dict[str, dict[str, Any]] = {}
     mcp_names: set[str] = set()
@@ -224,7 +230,10 @@ def main() -> int:
         else "manifest hashes SKIPPED (source checkout unavailable; "
         "set PLAKY115_SOURCE_CHECKOUT to verify provenance)"
     )
-    print(f"PARITY OK: 32 operations, 8 curated tools, 11 workflows, {hashes}")
+    print(
+        f"PARITY OK: {EXPECTED_OPERATION_COUNT} operations, 8 curated tools, 11 workflows, "
+        f"{hashes}"
+    )
     return 0
 
 

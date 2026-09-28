@@ -1,4 +1,11 @@
 # Minimal exact JSON Pointer patches for confirmed upstream defects.
 # Each entry: {pointer: "#/...", op: replace|add|remove, value: ...}.
-# No confirmed defects at the pinned baseline.
-patches: []
+patches:
+# The spec marks color optional, but createItemGroup and updateItemGroup
+# answer 500 without it (measured live 2026-09-21/22).
+- pointer: "#/components/schemas/ItemGroupCreateRequest/required"
+  op: replace
+  value: [color, title]
+- pointer: "#/components/schemas/ItemGroupUpdateRequest/required"
+  op: replace
+  value: [color, ranking, title]

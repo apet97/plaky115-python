@@ -31,9 +31,10 @@ from plaky115.resources.item_groups import AsyncItemGroupsResource
 from plaky115.resources.items import AsyncItemsResource
 from plaky115.resources.reactions import AsyncReactionsResource
 from plaky115.resources.spaces import AsyncSpacesResource
+from plaky115.resources.subscriptions import AsyncSubscriptionsResource
 from plaky115.resources.teams import AsyncTeamsResource
 from plaky115.resources.users import AsyncUsersResource
-from plaky115.runtime.rate_limit import RateLimitTracker
+from plaky115.runtime.rate_limit import RateLimitTracker, RequestPacer
 from plaky115.user_agent import build_user_agent
 
 
@@ -59,6 +60,7 @@ class AsyncPlakyClient:
         response_hook: Callable[..., Any] | None = None,
         http_client: httpx2.AsyncClient | None = None,
         transport: httpx2.AsyncBaseTransport | None = None,
+        pacer: RequestPacer | None = None,
     ) -> None:
         if isinstance(api_key, str) and not api_key.strip():
             raise ValueError("PlakyClient: apiKey is required")
@@ -81,12 +83,14 @@ class AsyncPlakyClient:
         self._owns_http = http_client is None
         self._http = http_client or httpx2.AsyncClient(transport=transport)
         self.rate_limit = RateLimitTracker()
+        self._pacer = pacer
 
         self.spaces = AsyncSpacesResource(self)
         self.boards = AsyncBoardsResource(self)
         self.items = AsyncItemsResource(self)
         self.comments = AsyncItemCommentsResource(self)
         self.reactions = AsyncReactionsResource(self)
+        self.subscriptions = AsyncSubscriptionsResource(self)
         self.users = AsyncUsersResource(self)
         self.teams = AsyncTeamsResource(self)
         self.item_groups = AsyncItemGroupsResource(self)
@@ -148,6 +152,7 @@ class AsyncPlakyClient:
             response_hook=self._response_hook,
             on_dispatch=overrides.on_dispatch if overrides is not None else None,
             rate_limit_tracker=self.rate_limit,
+            pacer=self._pacer,
         )
 
     async def execute(self, spec: RequestSpec, options: RequestOverrides | None) -> Any:
@@ -213,6 +218,7 @@ class AsyncPlakyClient:
             request_hook=self._request_hook,
             response_hook=self._response_hook,
             http_client=self._http,
+            pacer=self._pacer,
         )
         return clone
 

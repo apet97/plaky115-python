@@ -10,6 +10,7 @@ from plaky115.models.compatibility import (
     ItemFile,
     ItemFileDownload,
     ItemGroup,
+    ItemSubscriptions,
     Reaction,
     ReactionDetail,
     ReactionReplaceResult,
@@ -27,6 +28,7 @@ from plaky115.models.generated import (
     ItemFileUpdateRequest,
     ItemGroupCreateRequest,
     ItemGroupUpdateRequest,
+    ItemSubscriptionRequest,
     ReactionPutRequest,
 )
 
@@ -46,6 +48,8 @@ __all__ = [
     "ItemGroup",
     "ItemGroupCreateRequest",
     "ItemGroupUpdateRequest",
+    "ItemSubscriptionRequest",
+    "ItemSubscriptions",
     "Reaction",
     "ReactionDetail",
     "ReactionPutRequest",

@@ -1,4 +1,4 @@
-"""Resource classes for the plaky115 SDK (nine sync + nine async)."""
+"""Resource classes for the plaky115 SDK (ten sync + ten async)."""
 
 from plaky115.resources.boards import AsyncBoardsResource, BoardsResource
 from plaky115.resources.comments import AsyncItemCommentsResource, ItemCommentsResource
@@ -7,6 +7,7 @@ from plaky115.resources.item_groups import AsyncItemGroupsResource, ItemGroupsRe
 from plaky115.resources.items import AsyncItemsResource, ItemsResource
 from plaky115.resources.reactions import AsyncReactionsResource, ReactionsResource
 from plaky115.resources.spaces import AsyncSpacesResource, SpacesResource
+from plaky115.resources.subscriptions import AsyncSubscriptionsResource, SubscriptionsResource
 from plaky115.resources.teams import AsyncTeamsResource, TeamsResource
 from plaky115.resources.users import AsyncUsersResource, UsersResource
 
@@ -18,6 +19,7 @@ __all__ = [
     "AsyncItemsResource",
     "AsyncReactionsResource",
     "AsyncSpacesResource",
+    "AsyncSubscriptionsResource",
     "AsyncTeamsResource",
     "AsyncUsersResource",
     "BoardsResource",
@@ -27,6 +29,7 @@ __all__ = [
     "ItemsResource",
     "ReactionsResource",
     "SpacesResource",
+    "SubscriptionsResource",
     "TeamsResource",
     "UsersResource",
 ]

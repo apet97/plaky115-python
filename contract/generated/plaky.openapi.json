@@ -360,6 +360,29 @@
             "format": "int64",
             "type": "integer"
           },
+          "subscribedTeamIds": {
+            "description": "Represents list of configured team ids which should be added as subscribers to the new item.",
+            "example": [
+              1
+            ],
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "subscribedUserIds": {
+            "description": "Represents list of configured user ids which should be added as subscribers to the new item. If omitted, default subscription logic applies (creator + template defaults).",
+            "example": [
+              1,
+              2
+            ],
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": "array"
+          },
           "title": {
             "description": "Represents title of the item. If it is not provided then default title be set. Default title for item is New Item and\nfor subitem it is New Subitem.",
             "example": "My New Item",
@@ -504,6 +527,7 @@
           }
         },
         "required": [
+          "color",
           "title"
         ],
         "type": "object"
@@ -550,6 +574,7 @@
           }
         },
         "required": [
+          "color",
           "ranking",
           "title"
         ],
@@ -702,6 +727,57 @@
           "title": {
             "description": "Represents item title.",
             "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ItemSubscriptionRequest": {
+        "description": "Represents a request to manage item subscriptions.",
+        "properties": {
+          "teamIds": {
+            "description": "List of team IDs to process.",
+            "example": [
+              10,
+              11
+            ],
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "userIds": {
+            "description": "List of user IDs to process.",
+            "example": [
+              1,
+              2,
+              3
+            ],
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "ItemSubscriptionResponse": {
+        "description": "Represents the list of active subscribers for an item.",
+        "properties": {
+          "teams": {
+            "description": "List of subscribed teams.",
+            "items": {
+              "$ref": "#/components/schemas/TeamShortResponse"
+            },
+            "type": "array"
+          },
+          "users": {
+            "description": "List of subscribed users.",
+            "items": {
+              "$ref": "#/components/schemas/ShortUserResponse"
+            },
+            "type": "array"
           }
         },
         "type": "object"
@@ -3190,7 +3266,118 @@
         "tags": [
           "Items"
         ],
-        "x-order": 3
+        "x-order": 4
+      }
+    },
+    "/v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/subscriptions": {
+      "get": {
+        "description": "Retrieves all users and teams subscribed to the specified item.",
+        "operationId": "getSubscriptions",
+        "parameters": [
+          {
+            "description": "Represents unique space identifier across the system.",
+            "in": "path",
+            "name": "spaceId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Represents unique board identifier across the system.",
+            "in": "path",
+            "name": "boardId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Represents unique item identifier across the system.",
+            "in": "path",
+            "name": "itemId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemSubscriptionResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "List item subscribers",
+        "tags": [
+          "Item Subscriptions"
+        ],
+        "x-order": 1
+      },
+      "put": {
+        "description": "Replaces the current item subscribers with the explicitly provided users and teams. This is a bulk, idempotent operation.",
+        "operationId": "overrideSubscriptions",
+        "parameters": [
+          {
+            "description": "Represents unique space identifier across the system.",
+            "in": "path",
+            "name": "spaceId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Represents unique board identifier across the system.",
+            "in": "path",
+            "name": "boardId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Represents unique item identifier across the system.",
+            "in": "path",
+            "name": "itemId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemSubscriptionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Replace item subscribers",
+        "tags": [
+          "Item Subscriptions"
+        ],
+        "x-order": 2
       }
     },
     "/v1/public/teams": {

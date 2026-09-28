@@ -1,6 +1,7 @@
 # Compatibility inventory
 
-All 32 operations at pinned source 33ae2926 (v1.0.11).
+All 34 operations: the 32 at pinned source 33ae2926 (v1.0.11), plus the
+item-subscription operations Plaky published since.
 
 | Operation | HTTP | SDK | Raw MCP tool | Scopes |
 | --- | --- | --- | --- | --- |
@@ -19,6 +20,7 @@ All 32 operations at pinned source 33ae2926 (v1.0.11).
 | getItemFileDownload | GET /v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/files/{itemFileId}/download | `client.item_files.get_download` | `plaky_get_item_file_download` | read |
 | getItemGroup | GET /v1/public/spaces/{spaceId}/boards/{boardId}/item-groups/{itemGroupId} | `client.item_groups.get` | `plaky_get_item_group` | read |
 | getSpace | GET /v1/public/spaces/{spaceId} | `client.spaces.get` | `plaky_get_space` | read |
+| getSubscriptions | GET /v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/subscriptions | `client.subscriptions.get` | `plaky_get_item_subscriptions` | read |
 | getTeam | GET /v1/public/teams/{teamId} | `client.teams.get` | `plaky_get_team` | read |
 | listBoards | GET /v1/public/spaces/{spaceId}/boards | `client.boards.list` | `plaky_list_boards` | read |
 | listItemComments | GET /v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/comments | `client.comments.list` | `plaky_list_item_comments` | read |
@@ -29,6 +31,7 @@ All 32 operations at pinned source 33ae2926 (v1.0.11).
 | listSubitems | GET /v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/sub-items | `client.items.list_subitems` | `plaky_list_subitems` | read |
 | listTeams | GET /v1/public/teams | `client.teams.list` | `plaky_list_teams` | read |
 | listUsers | GET /v1/public/users | `client.users.list` | `plaky_list_users` | read |
+| overrideSubscriptions | PUT /v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/subscriptions | `client.subscriptions.replace` | `plaky_replace_item_subscriptions` | write |
 | replaceCommentReactions | PUT /v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/comments/{itemCommentId}/reactions | `client.reactions.replace` | `plaky_replace_comment_reactions` | write |
 | updateItemComment | PUT /v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/comments/{itemCommentId} | `client.comments.update` | `plaky_update_item_comment` | write |
 | updateItemField | PATCH /v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/fields/{itemFieldKey} | `client.items.update_field` | `plaky_update_item_field` | write |

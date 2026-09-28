@@ -6,6 +6,7 @@ Ported from sdk/src/fields at the pinned source (docs/port/spec-helpers.md
 
 from __future__ import annotations
 
+import html
 import math
 from collections.abc import Mapping, Sequence
 from typing import Any
@@ -16,6 +17,7 @@ __all__ = [
     "number_field",
     "omit_none",
     "person_field",
+    "rich_text_field",
     "status_field",
     "string_field",
     "tag_field",
@@ -71,13 +73,26 @@ def timeline_field(*, start: str, end: str) -> dict[str, str]:
     return {"start": start, "end": end}
 
 
+def rich_text_field(text: str) -> str:
+    """Plain text as rich text: one escaped HTML paragraph per line.
+
+    Plaky stores rich text verbatim but renders it as HTML, so a bare newline
+    collapses into a space. A blank line becomes an empty paragraph, which
+    Plaky shows as a blank line. Paragraphs are joined by a newline because
+    the board's table preview strips tags and would otherwise run them together.
+    """
+    return "\n".join(f"<p>{html.escape(line, quote=False)}</p>" for line in text.splitlines())
+
+
 def link_field(*, url: str, text: str | None = None) -> dict[str, str]:
+    """A link; ``text`` is what Plaky shows and defaults to the URL.
+
+    The API requires ``displayText``: ``{"url"}`` alone, or ``text`` in its
+    place, is refused as "Value for Link is invalid".
+    """
     if not url:
         raise ValueError("linkField: url is required")
-    out = {"url": url}
-    if text is not None:
-        out["text"] = text
-    return out
+    return {"url": url, "displayText": url if text is None else text}
 
 
 def number_field(value: float) -> float:

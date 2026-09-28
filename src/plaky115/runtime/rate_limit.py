@@ -1,14 +1,19 @@
-"""Rate-limit observation and local estimation.
+"""Rate-limit observation, local estimation, and opt-in pacing.
 
-Preserves both views from the pinned source's RateLimitSink: server headers
-when available, and a local rolling 60-second window with a 200-request
-default maximum. Estimates only; never sleeps or throttles implicitly.
+RateLimitTracker preserves both views from the pinned source's
+RateLimitSink: server headers when available, and a local rolling 60-second
+window with a 200-request default maximum. It only estimates.
+
+RequestPacer is the opt-in throttle: a client given one waits before any
+attempt that would exceed its window.
 """
 
 from __future__ import annotations
 
+import threading
 import time
-from collections.abc import Mapping
+from collections import deque
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 
 
@@ -27,6 +32,10 @@ class RateLimitSnapshot:
 
 DEFAULT_RATE_LIMIT_WINDOW_SECONDS = 60.0
 DEFAULT_RATE_LIMIT_MAX = 200
+# Plaky's 200 per user per minute, less headroom for requests the same user
+# makes elsewhere. Measured 2026-09-22: 230 paced requests peaked at exactly
+# 190 in 60 s with no 429.
+DEFAULT_PACED_REQUESTS_PER_WINDOW = 190
 
 
 def _parse_num(value: str | None) -> float | None:
@@ -91,3 +100,44 @@ class RateLimitTracker:
     def reset(self) -> None:
         self._timestamps.clear()
         self.last = RateLimitSnapshot()
+
+
+class RequestPacer:
+    """Sliding-window client-side pacing, shared by every client given it.
+
+    Each attempt claims a slot before it is sent, retries and replays
+    included, because Plaky counts them all. Plaky's limit is per user, so
+    clients using the same API key should share one pacer. Thread-safe;
+    ``reserve`` never blocks, so it is safe on an event loop.
+    """
+
+    def __init__(
+        self,
+        *,
+        limit: int = DEFAULT_PACED_REQUESTS_PER_WINDOW,
+        window_seconds: float = DEFAULT_RATE_LIMIT_WINDOW_SECONDS,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
+        if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
+            raise ValueError("RequestPacer: limit must be a positive integer")
+        if not window_seconds > 0 or window_seconds == float("inf"):
+            raise ValueError("RequestPacer: window_seconds must be a finite positive number")
+        self.limit = limit
+        self.window_seconds = float(window_seconds)
+        self._clock = clock
+        self._slots: deque[float] = deque()
+        self._lock = threading.Lock()
+
+    def reserve(self) -> float:
+        """Claim the next free slot; return the seconds to wait before sending."""
+        with self._lock:
+            now = self._clock()
+            while self._slots and self._slots[0] <= now - self.window_seconds:
+                self._slots.popleft()
+            slot = now
+            if len(self._slots) >= self.limit:
+                slot = max(slot, self._slots[-self.limit] + self.window_seconds)
+            if self._slots:
+                slot = max(slot, self._slots[-1])
+            self._slots.append(slot)
+            return slot - now

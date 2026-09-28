@@ -28,6 +28,7 @@ from plaky115 import (
     person_field,
     read_item_export_chunk,
     resolve_space,
+    rich_text_field,
     search_items_detailed,
     status_field,
     string_field,
@@ -62,8 +63,11 @@ def test_field_builders() -> None:
     }
     with pytest.raises(ValueError, match="both start and end are required"):
         timeline_field(start="", end="2026-02-01")
-    assert link_field(url="https://x") == {"url": "https://x"}
-    assert link_field(url="https://x", text="X") == {"url": "https://x", "text": "X"}
+    assert link_field(url="https://x") == {"url": "https://x", "displayText": "https://x"}
+    assert link_field(url="https://x", text="X") == {"url": "https://x", "displayText": "X"}
+    assert link_field(url="https://x", text="") == {"url": "https://x", "displayText": ""}
+    assert rich_text_field("Goal\n\na < b & c") == "<p>Goal</p>\n<p></p>\n<p>a &lt; b &amp; c</p>"
+    assert rich_text_field("") == ""
     with pytest.raises(ValueError, match="url is required"):
         link_field(url="")
     assert number_field(1.5) == 1.5

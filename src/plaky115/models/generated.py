@@ -198,6 +198,22 @@ class ItemCreateRequest(BaseModel):
             examples=[1],
         ),
     ] = None
+    subscribed_team_ids: Annotated[
+        list[int | str] | None,
+        Field(
+            alias="subscribedTeamIds",
+            description="Represents list of configured team ids which should be added as subscribers to the new item.",
+            examples=[[1]],
+        ),
+    ] = None
+    subscribed_user_ids: Annotated[
+        list[int | str] | None,
+        Field(
+            alias="subscribedUserIds",
+            description="Represents list of configured user ids which should be added as subscribers to the new item. If omitted, default subscription logic applies (creator + template defaults).",
+            examples=[[1, 2]],
+        ),
+    ] = None
     title: Annotated[
         str | None,
         Field(
@@ -350,11 +366,11 @@ class ItemGroupCreateRequest(BaseModel):
         populate_by_name=True,
     )
     color: Annotated[
-        str | None,
+        str,
         Field(
             description="Represents color of the item group. Color value must be in standard RGB hexadecimal format."
         ),
-    ] = None
+    ]
     ranking: Annotated[
         str | None,
         Field(description="Represents lexicographical string used for custom ordering/sorting."),
@@ -402,11 +418,11 @@ class ItemGroupUpdateRequest(BaseModel):
         populate_by_name=True,
     )
     color: Annotated[
-        str | None,
+        str,
         Field(
             description="Represents color of the item group. Color value must be in standard RGB hexadecimal format."
         ),
-    ] = None
+    ]
     ranking: Annotated[
         str,
         Field(
@@ -422,6 +438,34 @@ class ItemGroupUpdateRequest(BaseModel):
             min_length=1,
         ),
     ]
+
+
+class ItemSubscriptionRequest(BaseModel):
+    """
+    Represents a request to manage item subscriptions.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+        strict=True,
+        populate_by_name=True,
+    )
+    team_ids: Annotated[
+        list[int | str] | None,
+        Field(
+            alias="teamIds",
+            description="List of team IDs to process.",
+            examples=[[10, 11]],
+        ),
+    ] = None
+    user_ids: Annotated[
+        list[int | str] | None,
+        Field(
+            alias="userIds",
+            description="List of user IDs to process.",
+            examples=[[1, 2, 3]],
+        ),
+    ] = None
 
 
 class NoConfiguration(BaseModel):
@@ -980,6 +1024,23 @@ class DateTimeConfiguration(BaseModel):
             alias="showWeekNumbers",
             description="Represents whether week number is displayed.",
         ),
+    ] = None
+
+
+class ItemSubscriptionResponse(BaseModel):
+    """
+    Represents the list of active subscribers for an item.
+    """
+
+    model_config = ConfigDict(
+        extra="allow",
+        populate_by_name=True,
+    )
+    teams: Annotated[
+        list[TeamShortResponse] | None, Field(description="List of subscribed teams.")
+    ] = None
+    users: Annotated[
+        list[ShortUserResponse] | None, Field(description="List of subscribed users.")
     ] = None
 
 

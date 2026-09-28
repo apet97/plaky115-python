@@ -4,8 +4,9 @@ Ported from sdk/src/runtime/http.ts + internal/fetcher.ts at the pinned
 source (docs/port/spec-transport.md).
 
 Guarantees:
-- Only GET requests retry (429/5xx/timeout/connection); writes make exactly
-  one network attempt even with an idempotency key.
+- GET requests retry on 429/5xx/timeout/connection. Writes are replayed
+  only after a 429, which Plaky never commits; any other failure leaves a
+  write at exactly one network attempt, even with an idempotency key.
 - Async attempts have one total budget across providers, hooks, I/O, body
   reads, decoding, and response hooks.
 - Task cancellation propagates; it is never wrapped as a connection error.
@@ -41,7 +42,6 @@ from plaky115.http import (
 from plaky115.runtime.request_builders import assert_trusted_request_url, build_url
 from plaky115.runtime.responses import get_request_id, parse_json_preserving_int64
 from plaky115.runtime.retry_policy import (
-    can_retry,
     can_retry_error,
     parse_retry_after,
     retry_delay_ms,
@@ -120,11 +120,16 @@ async def async_request_with_response(
 ) -> ApiResponse:
     method = spec.method.upper()
     operation_id = spec.operation_id or f"{method} {spec.path}"
-    max_retries = options.max_retries if can_retry(method) else 0
+    max_retries = options.max_retries
     timeout = options.timeout if options.timeout and options.timeout > 0 else None
 
     attempt = 0
     while True:
+        # Outside the attempt's timeout: waiting for a slot is not network time.
+        if options.pacer is not None:
+            wait = options.pacer.reserve()
+            if wait > 0:
+                await asyncio.sleep(wait)
         retry_after_header: str | None = None
         phase = "preflight"
         response: httpx2.Response | None = None

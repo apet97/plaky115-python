@@ -32,6 +32,8 @@
     { "operationId": "getItemFile", "method": "GET", "path": "/v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/files/{itemFileId}" },
     { "operationId": "getItemFileDownload", "method": "GET", "path": "/v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/files/{itemFileId}/download" },
     { "operationId": "updateItemFile", "method": "PUT", "path": "/v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/files/{itemFileId}" },
-    { "operationId": "deleteItemFile", "method": "DELETE", "path": "/v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/files/{itemFileId}" }
+    { "operationId": "deleteItemFile", "method": "DELETE", "path": "/v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/files/{itemFileId}" },
+    { "operationId": "getSubscriptions", "method": "GET", "path": "/v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/subscriptions" },
+    { "operationId": "overrideSubscriptions", "method": "PUT", "path": "/v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/subscriptions" }
   ]
 }

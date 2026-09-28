@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased
+
+Findings from a live monday.com → Plaky migration (measured 2026-09-21/23):
+
+- New `subscriptions` resource (sync and async): `get` and `replace`, from
+  the `getSubscriptions` / `overrideSubscriptions` operations Plaky has
+  published since the pinned contract, with raw MCP tools
+  `plaky_get_item_subscriptions` and `plaky_replace_item_subscriptions`.
+  `ItemCreateRequest` gains `subscribedUserIds` / `subscribedTeamIds`.
+  `scripts/contract.py fetch` now reads the spec embedded in the
+  docs.plaky.com page.
+- A 429 is replayed for every method, not only GET: Plaky never commits a
+  request it refuses with 429. A write that meets a 5xx, timeout, or
+  connection failure still makes exactly one attempt.
+- New opt-in `RequestPacer` keeps a client under Plaky's 200-per-minute
+  limit (190 per 60 s sliding window by default); every attempt claims a
+  slot, and `with_options` shares it.
+- Fixed `link_field`: it emitted `text`, which the API refuses; it now
+  emits `displayText`, defaulting to the URL.
+- New `rich_text_field` writes plain text as escaped HTML paragraphs.
+- Item group create and update require `color` again (in the SDK, the
+  generated models, and the MCP schemas): the server answers 500 without it.
+- `docs/sdk.md` records the server behaviour behind these changes: list
+  defaults, clearing rules per field type, the Person write shape, date
+  offsets, ambiguous labels, and rewritten file names.
+
 ## v1.2.2
 
 - Fixed mutation attempt tracking, item pagination filters, transport timeout

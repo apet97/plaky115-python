@@ -110,13 +110,8 @@ def build_tool(client: AsyncPlakyClient) -> ToolSpec:
                 "body": {
                     "properties": {
                         "color": {
-                            "anyOf": [
-                                {
-                                    "description": "Represents color of the item group. Color value must be in standard RGB hexadecimal format.",
-                                    "type": "string",
-                                },
-                                {"type": "null"},
-                            ]
+                            "description": "Represents color of the item group. Color value must be in standard RGB hexadecimal format.",
+                            "type": "string",
                         },
                         "ranking": {
                             "anyOf": [
@@ -134,7 +129,7 @@ def build_tool(client: AsyncPlakyClient) -> ToolSpec:
                             "type": "string",
                         },
                     },
-                    "required": ["title"],
+                    "required": ["color", "title"],
                     "type": "object",
                     "additionalProperties": False,
                 },

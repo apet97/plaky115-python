@@ -522,8 +522,9 @@ def build_outputs() -> dict[str, str]:
 
     ids = [d["operationId"] for d in descriptors]
     names = [d["mcpName"] for d in descriptors]
-    if len(descriptors) != 32 or len(set(ids)) != 32 or len(set(names)) != 32:
-        raise ValueError("descriptor inventory must contain exactly 32 unique operations")
+    count = len(expected["operations"])
+    if len(descriptors) != count or len(set(ids)) != count or len(set(names)) != count:
+        raise ValueError(f"descriptor inventory must contain exactly {count} unique operations")
 
     operations_doc = {
         "descriptorVersion": 2,
@@ -568,18 +569,67 @@ def cmd_check() -> int:
     return 0
 
 
+_EMBEDDED_SPEC_MARKER = "const openApiSpec ="
+
+
+class _UpstreamYamlDumper(yaml.SafeDumper):
+    """Dump in the accepted mirror's style so a refetch diffs by content."""
+
+
+def _represent_upstream_str(dumper: yaml.SafeDumper, value: str) -> yaml.ScalarNode:
+    style = None
+    if "\n" in value:
+        style = "|"
+    elif value.startswith(("$", "#", "/")):
+        style = '"'
+    return dumper.represent_scalar("tag:yaml.org,2002:str", value, style=style)
+
+
+_UpstreamYamlDumper.add_representer(str, _represent_upstream_str)
+
+
+def extract_embedded_spec(page: str) -> dict[str, Any]:
+    """Pull the OpenAPI document out of the published docs page.
+
+    docs.plaky.com publishes no standalone spec file: the page embeds the
+    document as a JS literal handed to its API-reference widget. Remove this
+    once Plaky serves the spec at its own URL.
+    """
+    marker = page.find(_EMBEDDED_SPEC_MARKER)
+    start = page.find("{", marker) if marker >= 0 else -1
+    if start < 0:
+        raise ValueError("docs page has no embedded OpenAPI document")
+    spec, _ = json.JSONDecoder().raw_decode(page, start)
+    if not isinstance(spec, dict) or "openapi" not in spec:
+        raise ValueError("embedded document is not an OpenAPI object")
+    return spec
+
+
 def cmd_fetch(url: str) -> int:
     import urllib.request
 
     CANDIDATE.mkdir(parents=True, exist_ok=True)
     with urllib.request.urlopen(url) as response:
         raw = response.read()
+    content = raw
+    embedded = raw.lstrip()[:15].lower().startswith(b"<!doctype html")
+    if embedded:
+        spec = extract_embedded_spec(raw.decode("utf-8"))
+        content = yaml.dump(
+            spec,
+            Dumper=_UpstreamYamlDumper,
+            sort_keys=True,
+            explicit_start=True,
+            allow_unicode=True,
+        ).encode("utf-8")
     target = CANDIDATE / "upstream.openapi.yaml"
-    target.write_bytes(raw)
+    target.write_bytes(content)
     manifest = {
         "sourceUrl": url,
         "fetchedAt": datetime.now(UTC).isoformat(),
         "rawSha256": hashlib.sha256(raw).hexdigest(),
+        "extractedFromHtml": embedded,
+        "specSha256": hashlib.sha256(content).hexdigest(),
     }
     (CANDIDATE / "manifest.json").write_text(canonical_json(manifest), encoding="utf-8")
     print(f"fetched {len(raw)} bytes into contract/candidate/upstream.openapi.yaml")
@@ -649,12 +699,14 @@ def cmd_accept() -> int:
     fetch_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     manifest = json.loads((CONTRACT / "source-manifest.json").read_text(encoding="utf-8"))
     manifest["upstreamProvenance"] = {
-        "sourceUrl": fetch_manifest["sourceUrl"],
-        "fetchedAt": fetch_manifest["fetchedAt"],
-        "rawSha256": fetch_manifest["rawSha256"],
+        **fetch_manifest,
+        "operationCount": len(iter_operations(candidate)),
         "acceptedAt": datetime.now(UTC).isoformat(),
     }
-    (CONTRACT / "source-manifest.json").write_text(canonical_json(manifest), encoding="utf-8")
+    # Written in its existing key order, so an accept diffs only provenance.
+    (CONTRACT / "source-manifest.json").write_text(
+        json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+    )
     print("accepted candidate into contract/upstream.openapi.yaml; rebuild and review drift")
     return 0
 

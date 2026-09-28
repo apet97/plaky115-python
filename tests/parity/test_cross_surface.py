@@ -40,6 +40,7 @@ BODIES: dict[str, Any] = {
     "createItemGroup": {"title": "G", "color": "#AABBCC"},
     "updateItemGroup": {"title": "G", "color": "#AABBCC", "ranking": "aaa"},
     "updateItemFile": {"name": "renamed.txt"},
+    "overrideSubscriptions": {"userIds": [1, 2], "teamIds": [3]},
 }
 
 # (expected query string, expected body or None, invoker kwargs builder)
@@ -160,6 +161,12 @@ def async_invokers() -> dict[str, AsyncInvoker]:
         "deleteItemFile": lambda c: c.item_files.delete(
             space_id=SPACE, board_id=BOARD, item_id=ITEM, item_file_id=FILE_ID
         ),
+        "getSubscriptions": lambda c: c.subscriptions.get(
+            space_id=SPACE, board_id=BOARD, item_id=ITEM
+        ),
+        "overrideSubscriptions": lambda c: c.subscriptions.replace(
+            space_id=SPACE, board_id=BOARD, item_id=ITEM, body=BODIES["overrideSubscriptions"]
+        ),
     }
 
 
@@ -226,9 +233,9 @@ def make_handler(descriptor: dict[str, Any], calls: list[str]) -> Any:
     return handler
 
 
-def test_invoker_tables_cover_all_32_operations() -> None:
+def test_invoker_tables_cover_all_34_operations() -> None:
     assert set(async_invokers()) == set(OPERATIONS)
-    assert len(OPERATIONS) == 32
+    assert len(OPERATIONS) == 34
 
 
 @pytest.mark.parametrize("op_id", sorted(OPERATIONS))

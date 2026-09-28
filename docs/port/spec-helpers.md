@@ -96,9 +96,10 @@ and their tests. Parity contract for the Python port.
   both be provided`.
 - normalizeItemCreatePlan: requiresLiveResolution = groupTitle present.
   groupId/parentId canonicalized in place. Empty body valid.
-- normalizeItemGroupCreatePlan: title req, color opt, ranking opt.
-  UpdatePlan: title req, ranking req, color opt. Color, when present,
-  must match #RRGGBB.
+- normalizeItemGroupCreatePlan: title req, color req, ranking opt.
+  UpdatePlan: title req, ranking req, color req. Color must match
+  #RRGGBB. (Briefly optional in 1.2.x after a spec-based review; the
+  server answers 500 without it, measured live 2026-09-21/22.)
 - normalizeCommentPlan: text req; operationId param default
   createItemComment. normalizeItemFileUpdatePlan: body.name via full
   filename validation.
@@ -123,7 +124,9 @@ and their tests. Parity contract for the Python port.
 - timeline_field: falsy start or end → Error("timelineField: both start and
   end are required (ISO date strings)"); no date parsing.
 - link_field: falsy url → Error("linkField: url is required"); no URL
-  validation. number_field: finite only →
+  validation. Deliberate deviation: the source emitted `text`, which the
+  API refuses; Python always emits `displayText`, defaulting to the url
+  (measured 2026-09-23). rich_text_field is Python-only. number_field: finite only →
   Error("numberField: value must be a finite number").
 - field_label precedence: name → title → key, first non-empty string; ""
   means skip the field (lives in csv module in source).

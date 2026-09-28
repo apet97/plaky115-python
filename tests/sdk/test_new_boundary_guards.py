@@ -137,12 +137,12 @@ def test_workflow_body_contracts_reject_unknown_fixed_keys() -> None:
         ("items.create", "createItem", {}, {"title": "Item"}),
         ("items.updateFields", "updateItemFields", {"itemId": "3"}, {"field-1": {"value": "x"}}),
         ("comments.add", "createItemComment", {"itemId": "3"}, {"text": "Note"}),
-        ("itemGroups.create", "createItemGroup", {}, {"title": "Group"}),
+        ("itemGroups.create", "createItemGroup", {}, {"title": "Group", "color": "#AABBCC"}),
         (
             "itemGroups.update",
             "updateItemGroup",
             {"itemGroupId": "4"},
-            {"title": "Group", "ranking": "a"},
+            {"title": "Group", "ranking": "a", "color": "#AABBCC"},
         ),
         (
             "itemFiles.upload",

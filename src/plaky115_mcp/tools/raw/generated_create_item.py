@@ -180,6 +180,56 @@ def build_tool(client: AsyncPlakyClient) -> ToolSpec:
                                 {"type": "null"},
                             ]
                         },
+                        "subscribedTeamIds": {
+                            "anyOf": [
+                                {
+                                    "description": "Represents list of configured team ids which should be added as subscribers to the new item.",
+                                    "example": [1],
+                                    "items": {
+                                        "anyOf": [
+                                            {
+                                                "type": "integer",
+                                                "format": "int64",
+                                                "minimum": 0,
+                                                "maximum": 9223372036854775807,
+                                            },
+                                            {
+                                                "type": "string",
+                                                "pattern": "^(0|[1-9][0-9]*)$",
+                                                "maxLength": 19,
+                                            },
+                                        ]
+                                    },
+                                    "type": "array",
+                                },
+                                {"type": "null"},
+                            ]
+                        },
+                        "subscribedUserIds": {
+                            "anyOf": [
+                                {
+                                    "description": "Represents list of configured user ids which should be added as subscribers to the new item. If omitted, default subscription logic applies (creator + template defaults).",
+                                    "example": [1, 2],
+                                    "items": {
+                                        "anyOf": [
+                                            {
+                                                "type": "integer",
+                                                "format": "int64",
+                                                "minimum": 0,
+                                                "maximum": 9223372036854775807,
+                                            },
+                                            {
+                                                "type": "string",
+                                                "pattern": "^(0|[1-9][0-9]*)$",
+                                                "maxLength": 19,
+                                            },
+                                        ]
+                                    },
+                                    "type": "array",
+                                },
+                                {"type": "null"},
+                            ]
+                        },
                         "title": {
                             "anyOf": [
                                 {

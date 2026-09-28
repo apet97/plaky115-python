@@ -1068,6 +1068,74 @@
     {
       "compactKind": "raw",
       "confirmation": "none",
+      "description": "Retrieves all users and teams subscribed to the specified item.",
+      "destructive": false,
+      "idempotent": true,
+      "list": false,
+      "mcpName": "plaky_get_item_subscriptions",
+      "mcpTitle": "Get item subscribers",
+      "method": "GET",
+      "mutation": false,
+      "openWorld": true,
+      "operationId": "getSubscriptions",
+      "parameters": [
+        {
+          "description": "Represents unique space identifier across the system.",
+          "in": "path",
+          "name": "spaceId",
+          "required": true,
+          "schema": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        {
+          "description": "Represents unique board identifier across the system.",
+          "in": "path",
+          "name": "boardId",
+          "required": true,
+          "schema": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        {
+          "description": "Represents unique item identifier across the system.",
+          "in": "path",
+          "name": "itemId",
+          "required": true,
+          "schema": {
+            "format": "int64",
+            "type": "integer"
+          }
+        }
+      ],
+      "path": "/v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/subscriptions",
+      "query": [],
+      "readOnly": true,
+      "request": {
+        "kind": "none",
+        "required": false
+      },
+      "scopes": [
+        "read"
+      ],
+      "sdk": {
+        "method": "get",
+        "resource": "subscriptions"
+      },
+      "sensitiveOutput": false,
+      "success": {
+        "kind": "json-object",
+        "model": "ItemSubscriptionResponse",
+        "root": "object",
+        "status": 200
+      },
+      "summary": "List item subscribers"
+    },
+    {
+      "compactKind": "raw",
+      "confirmation": "none",
       "description": "Retrieve a team",
       "destructive": false,
       "idempotent": true,
@@ -2153,6 +2221,74 @@
         "status": 200
       },
       "summary": "List workspace users"
+    },
+    {
+      "compactKind": "raw",
+      "confirmation": "none",
+      "description": "Replaces the current item subscribers with the explicitly provided users and teams. This is a bulk, idempotent operation.",
+      "destructive": false,
+      "idempotent": true,
+      "list": false,
+      "mcpName": "plaky_replace_item_subscriptions",
+      "mcpTitle": "Replace item subscribers",
+      "method": "PUT",
+      "mutation": true,
+      "openWorld": true,
+      "operationId": "overrideSubscriptions",
+      "parameters": [
+        {
+          "description": "Represents unique space identifier across the system.",
+          "in": "path",
+          "name": "spaceId",
+          "required": true,
+          "schema": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        {
+          "description": "Represents unique board identifier across the system.",
+          "in": "path",
+          "name": "boardId",
+          "required": true,
+          "schema": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        {
+          "description": "Represents unique item identifier across the system.",
+          "in": "path",
+          "name": "itemId",
+          "required": true,
+          "schema": {
+            "format": "int64",
+            "type": "integer"
+          }
+        }
+      ],
+      "path": "/v1/public/spaces/{spaceId}/boards/{boardId}/items/{itemId}/subscriptions",
+      "query": [],
+      "readOnly": false,
+      "request": {
+        "kind": "json",
+        "model": "ItemSubscriptionRequest",
+        "required": true
+      },
+      "scopes": [
+        "write"
+      ],
+      "sdk": {
+        "method": "replace",
+        "resource": "subscriptions"
+      },
+      "sensitiveOutput": false,
+      "success": {
+        "kind": "void",
+        "root": "void",
+        "status": 200
+      },
+      "summary": "Replace item subscribers"
     },
     {
       "compactKind": "raw",

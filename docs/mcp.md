@@ -12,7 +12,7 @@ plaky115-mcp --transport stdio --mode curated --scope read
 ```
 
 Defaults: `curated` mode, `read` scope. Modes: `curated`, `generated`
-(32 raw tools), `all`. Scopes: `read`, `write`, `destructive`
+(34 raw tools), `all`. Scopes: `read`, `write`, `destructive`
 (destructive requires write). The deprecated mixed dispatcher
 `plaky_execute_workflow` mounts only with `--enable-compat-workflow` and
 is excluded from any directory-facing catalog.

@@ -4,7 +4,7 @@
 # pyright: reportAssignmentType=false
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false
 # pyright: reportUnknownArgumentType=false
-"""Raw MCP tool for updateItemGroup: Update an item group."""
+"""Raw MCP tool for overrideSubscriptions: Replace item subscribers."""
 
 from __future__ import annotations
 
@@ -16,51 +16,48 @@ from pydantic import Field
 
 from plaky115.async_client import AsyncPlakyClient
 from plaky115.errors import PlakyError
-from plaky115.models.generated import ItemGroupUpdateRequest
+from plaky115.models.generated import ItemSubscriptionRequest
 from plaky115.resources._common import RequestOverrides
 from plaky115.runtime.mutations import AttemptTracker
 from plaky115_mcp.compaction import (
-    compact_entity,
     error_result,
     make_result,
 )
 from plaky115_mcp.errors import envelope_wire, error_envelope, internal_error
-from plaky115_mcp.outputs import EntityOutput
+from plaky115_mcp.outputs import OkOutput
 from plaky115_mcp.registry import ToolSpec
 from plaky115_mcp.workflow_models import CanonicalId
 
 
 def build_tool(client: AsyncPlakyClient) -> ToolSpec:
-    async def update_item_group(
+    async def override_subscriptions(
         spaceId: Annotated[
             CanonicalId, Field(description="Represents unique space identifier across the system.")
         ],
         boardId: Annotated[
             CanonicalId, Field(description="Represents unique board identifier across the system.")
         ],
-        itemGroupId: Annotated[
-            CanonicalId,
-            Field(description="Represents unique item group identifier across the system."),
+        itemId: Annotated[
+            CanonicalId, Field(description="Represents unique item identifier across the system.")
         ],
-        body: ItemGroupUpdateRequest,
-    ) -> Annotated[CallToolResult, EntityOutput]:
+        body: ItemSubscriptionRequest,
+    ) -> Annotated[CallToolResult, OkOutput]:
         tracker = AttemptTracker(
-            "updateItemGroup",
-            {"spaceId": str(spaceId), "boardId": str(boardId), "itemGroupId": str(itemGroupId)},
+            "overrideSubscriptions",
+            {"spaceId": str(spaceId), "boardId": str(boardId), "itemId": str(itemId)},
         )
         try:
-            result = await client.item_groups.update(
+            result = await client.subscriptions.replace(
                 space_id=spaceId,
                 board_id=boardId,
-                item_group_id=itemGroupId,
+                item_id=itemId,
                 body=body,
                 options=RequestOverrides(on_dispatch=tracker.request_started),
             )
             tracker.completed()
-            wire = compact_entity(
-                result.model_dump(mode="json", by_alias=True, exclude_none=True), "itemGroup"
-            )
-            text = f"updateItemGroup: id={wire.get('id')}"
+            del result
+            wire = {"ok": True}
+            text = "overrideSubscriptions: ok"
             return make_result(text=text, structured=wire)
         except asyncio.CancelledError:
             raise
@@ -73,10 +70,10 @@ def build_tool(client: AsyncPlakyClient) -> ToolSpec:
             )
 
     return ToolSpec(
-        name="plaky_update_item_group",
-        title="Update item group",
-        description="Update an item group; it performs the requested change. Requires space ID, board ID, item group ID and write scope. This performs a live write with no dry-run; if a failure is ambiguous, inspect the receipt and do not repeat blindly.",
-        handler=update_item_group,
+        name="plaky_replace_item_subscriptions",
+        title="Replace item subscribers",
+        description="Replace item subscribers; it performs the requested change. Requires space ID, board ID, item ID and write scope. This performs a live write with no dry-run; if a failure is ambiguous, inspect the receipt and do not repeat blindly.",
+        handler=override_subscriptions,
         scopes=frozenset({"write"}),
         annotations=ToolAnnotations(
             read_only_hint=False,
@@ -113,7 +110,7 @@ def build_tool(client: AsyncPlakyClient) -> ToolSpec:
                     ],
                     "description": "Represents unique board identifier across the system.",
                 },
-                "itemGroupId": {
+                "itemId": {
                     "oneOf": [
                         {
                             "type": "integer",
@@ -123,31 +120,66 @@ def build_tool(client: AsyncPlakyClient) -> ToolSpec:
                         },
                         {"type": "string", "pattern": "^(0|[1-9][0-9]*)$", "maxLength": 19},
                     ],
-                    "description": "Represents unique item group identifier across the system.",
+                    "description": "Represents unique item identifier across the system.",
                 },
                 "body": {
+                    "description": "Represents a request to manage item subscriptions.",
                     "properties": {
-                        "color": {
-                            "description": "Represents color of the item group. Color value must be in standard RGB hexadecimal format.",
-                            "type": "string",
+                        "teamIds": {
+                            "anyOf": [
+                                {
+                                    "description": "List of team IDs to process.",
+                                    "example": [10, 11],
+                                    "items": {
+                                        "anyOf": [
+                                            {
+                                                "type": "integer",
+                                                "format": "int64",
+                                                "minimum": 0,
+                                                "maximum": 9223372036854775807,
+                                            },
+                                            {
+                                                "type": "string",
+                                                "pattern": "^(0|[1-9][0-9]*)$",
+                                                "maxLength": 19,
+                                            },
+                                        ]
+                                    },
+                                    "type": "array",
+                                },
+                                {"type": "null"},
+                            ]
                         },
-                        "ranking": {
-                            "description": "Represents lexicographical string used for custom ordering/sorting.",
-                            "minLength": 1,
-                            "type": "string",
-                        },
-                        "title": {
-                            "description": "Represents title of the item group.",
-                            "maxLength": 255,
-                            "minLength": 1,
-                            "type": "string",
+                        "userIds": {
+                            "anyOf": [
+                                {
+                                    "description": "List of user IDs to process.",
+                                    "example": [1, 2, 3],
+                                    "items": {
+                                        "anyOf": [
+                                            {
+                                                "type": "integer",
+                                                "format": "int64",
+                                                "minimum": 0,
+                                                "maximum": 9223372036854775807,
+                                            },
+                                            {
+                                                "type": "string",
+                                                "pattern": "^(0|[1-9][0-9]*)$",
+                                                "maxLength": 19,
+                                            },
+                                        ]
+                                    },
+                                    "type": "array",
+                                },
+                                {"type": "null"},
+                            ]
                         },
                     },
-                    "required": ["color", "ranking", "title"],
                     "type": "object",
                     "additionalProperties": False,
                 },
             },
-            "required": ["spaceId", "boardId", "itemGroupId", "body"],
+            "required": ["spaceId", "boardId", "itemId", "body"],
         },
     )

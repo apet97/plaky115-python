@@ -47,6 +47,7 @@ from plaky115.fields import (
     number_field,
     omit_none,
     person_field,
+    rich_text_field,
     status_field,
     string_field,
     tag_field,
@@ -125,6 +126,7 @@ from plaky115.resources import (
     AsyncItemsResource,
     AsyncReactionsResource,
     AsyncSpacesResource,
+    AsyncSubscriptionsResource,
     AsyncTeamsResource,
     AsyncUsersResource,
     BoardsResource,
@@ -134,6 +136,7 @@ from plaky115.resources import (
     ItemsResource,
     ReactionsResource,
     SpacesResource,
+    SubscriptionsResource,
     TeamsResource,
     UsersResource,
 )
@@ -145,7 +148,7 @@ from plaky115.runtime.chunks import (
     read_paged_chunk,
     utf8_byte_length,
 )
-from plaky115.runtime.rate_limit import RateLimitTracker
+from plaky115.runtime.rate_limit import RateLimitTracker, RequestPacer
 from plaky115.runtime.redaction import redact, redact_value
 from plaky115.runtime.retries import async_with_retries, with_retries
 from plaky115.runtime.upload import (
@@ -209,6 +212,7 @@ __all__ = [
     "AsyncPlakyClient",
     "AsyncReactionsResource",
     "AsyncSpacesResource",
+    "AsyncSubscriptionsResource",
     "AsyncTeamsResource",
     "AsyncUsersResource",
     "Base64UploadInput",
@@ -260,10 +264,12 @@ __all__ = [
     "RateLimitTracker",
     "ReactionsResource",
     "RequestOverrides",
+    "RequestPacer",
     "SpaceExpand",
     "SpaceId",
     "SpacesResource",
     "SubitemsBehaviour",
+    "SubscriptionsResource",
     "SyncPaginator",
     "TeamId",
     "TeamsResource",
@@ -353,6 +359,7 @@ __all__ = [
     "resolve_space_and_board",
     "resolve_team",
     "resolve_user",
+    "rich_text_field",
     "search_items",
     "search_items_detailed",
     "status_field",

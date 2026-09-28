@@ -20,7 +20,8 @@ uv sync --all-extras --group dev
   `accept` / `build`; `accept` is always an explicit reviewed step.
 - Keep sync and async clients free of event-loop bridging; share only pure
   logic.
-- No write retries. No secrets in code, tests, fixtures, or docs.
+- No write retries, except replaying a 429, which Plaky never commits. No
+  secrets in code, tests, fixtures, or docs.
 
 ## Change order
 
